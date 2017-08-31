@@ -1,0 +1,20 @@
+language: ruby
+
+rvm:
+  - 2.4.1
+
+sudo: false
+
+cache:
+  bundler: true
+
+env:
+  global:
+    - CI=true
+    - RAILS_ENV=test
+
+  matrix:
+    - "DB=sqlite3"
+
+before_script:
+  - cp spec/test_app/config/database.$DB.yml.travis spec/test_app/config/database.yml
