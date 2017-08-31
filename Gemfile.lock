@@ -2,7 +2,7 @@ PATH
   remote: .
   specs:
     typed_dag (0.1.0)
-      rails (~> 5.1.3)
+      rails (>= 5.0.4)
 
 GEM
   remote: https://rubygems.org/

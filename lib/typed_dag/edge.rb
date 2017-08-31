@@ -1,74 +1,82 @@
 require 'active_support/concern'
+require 'typed_dag/configuration'
 
 module TypedDag::Edge
   extend ActiveSupport::Concern
 
   included do
-    belongs_to :from, class_name: 'WorkPackage', foreign_key: 'from_id'
-    belongs_to :to, class_name: 'WorkPackage', foreign_key: 'to_id'
+  end
 
-    after_create :add_closures
-    before_destroy :memorize_closures_to_destroy
-    after_destroy :truncate_closures
+  module ClassMethods
+    def acts_as_dag_edge(options)
+      @acts_as_dag_edge_options = TypedDag::Configuration.new(options)
+
+      include InstanceMethods
+      include Associations
+    end
+
+    def _dag_options
+      @acts_as_dag_edge_options
+    end
+  end
+
+  module InstanceMethods
+    def _dag_options
+      self.class._dag_options
+    end
 
     def add_closures
-      return unless depth == 1 && relation_type == 'hierarchy'
+      return unless send(_dag_options.depth_column) == 1 && send(_dag_options.type_column) == 'hierarchy'
+
+      ancestor_id = send(_dag_options.ancestor_column)
+      descendant_id = send(_dag_options.descendant_column)
 
       self.class.connection.execute <<-SQL
-        INSERT INTO relations
-          (from_id, to_id, relation_type, depth)
+        INSERT INTO #{self.class.table_name}
+          (#{_dag_options.ancestor_column},
+          #{_dag_options.descendant_column},
+          #{_dag_options.type_column},
+          #{_dag_options.depth_column})
         SELECT
-          r1.from_id,
-          r2.to_id,
+          r1.#{_dag_options.ancestor_column},
+          r2.#{_dag_options.descendant_column},
           'hierarchy',
           CASE
-            WHEN r1.to_id = r2.from_id
-            THEN r1.depth + r2.depth
-            ELSE r1.depth + r2.depth + 1
+            WHEN r1.#{_dag_options.ancestor_column} = r2.#{_dag_options.descendant_column}
+            THEN r1.#{_dag_options.depth_column} + r2.#{_dag_options.depth_column}
+            ELSE r1.#{_dag_options.depth_column} + r2.#{_dag_options.depth_column} + 1
             END
         FROM
-          relations r1
+          #{self.class.table_name} r1
         JOIN
-          relations r2
+          #{self.class.table_name} r2
         ON
-          (r1.to_id = #{from_id} AND r2.from_id = #{to_id})
+          (r1.#{_dag_options.descendant_column} = #{ancestor_id} AND r2.#{_dag_options.ancestor_column} = #{descendant_id})
         OR
-          (r1.to_id = r2.from_id AND r1.to_id IN (#{from_id}, #{to_id}))
+          (r1.#{_dag_options.descendant_column} = r2.#{_dag_options.ancestor_column} AND r1.#{_dag_options.descendant_column} IN (#{ancestor_id}, #{descendant_id}))
       SQL
     end
 
     def memorize_closures_to_destroy
-      return unless depth == 1 && relation_type == 'hierarchy'
+      return unless send(_dag_options.depth_column) == 1 && send(_dag_options.type_column) == 'hierarchy'
+
+      ancestor_id = send(_dag_options.ancestor_column)
+      descendant_id = send(_dag_options.descendant_column)
 
       @closures_to_destroy = self.class.connection.select_values <<-SQL
         SELECT
           r1.id
         FROM
-          relations r1
+          #{self.class.table_name} r1
         JOIN
-          relations r2
+          #{self.class.table_name} r2
         ON
-          r2.from_id = r1.from_id AND r2.to_id = #{to_id}
+          r2.#{_dag_options.ancestor_column} = r1.#{_dag_options.ancestor_column} AND r2.#{_dag_options.descendant_column} = #{descendant_id}
         JOIN
-          relations r3
+          #{self.class.table_name} r3
         ON
-          r3.to_id = r1.to_id AND r3.from_id = #{from_id}
+          r3.#{_dag_options.descendant_column} = r1.#{_dag_options.descendant_column} AND r3.#{_dag_options.ancestor_column} = #{ancestor_id}
       SQL
-
-      #self.class.connection.execute <<-SQL
-      #  DELETE
-      #    r1
-      #  FROM
-      #    relations r1
-      #  JOIN
-      #    relations r2
-      #  ON
-      #    r2.from_id = r1.from_id AND r2.to_id = #{to_id}
-      #  JOIN
-      #    relations r3
-      #  ON
-      #    r3.to_id = r1.to_id AND r3.from_id = #{from_id}
-      #SQL
     end
 
     def truncate_closures
@@ -77,6 +85,23 @@ module TypedDag::Edge
       self.class.where(id: @closures_to_destroy).delete_all
 
       @closures_to_destroy = nil
+    end
+  end
+
+  module Associations
+    extend ActiveSupport::Concern
+
+    included do
+      after_create :add_closures
+      before_destroy :memorize_closures_to_destroy
+      after_destroy :truncate_closures
+
+      belongs_to :ancestor,
+                 class_name: _dag_options.node_class_name,
+                 foreign_key: _dag_options.ancestor_column
+      belongs_to :descendant,
+                 class_name: _dag_options.node_class_name,
+                 foreign_key: _dag_options.descendant_column
     end
   end
 end
