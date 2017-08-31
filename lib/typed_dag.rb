@@ -1,3 +1,4 @@
 module TypedDag
-  # Your code goes here...
+  require 'typed_dag/node'
+  require 'typed_dag/edge'
 end
