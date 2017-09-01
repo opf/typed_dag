@@ -1,0 +1,9 @@
+default: &default
+  adapter: sqlite3
+  pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
+  timeout: 5000
+
+test:
+  <<: *default
+  adapter: postgresql
+  database: travis_ci_test

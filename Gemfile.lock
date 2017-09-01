@@ -70,6 +70,7 @@ GEM
     nio4r (2.1.0)
     nokogiri (1.8.0)
       mini_portile2 (~> 2.2.0)
+    pg (0.21.0)
     rack (2.0.3)
     rack-test (0.6.3)
       rack (>= 1.0)
@@ -135,6 +136,7 @@ PLATFORMS
 
 DEPENDENCIES
   factory_girl_rails
+  pg
   rspec-rails
   sqlite3
   typed_dag!

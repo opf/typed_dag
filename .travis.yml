@@ -8,6 +8,9 @@ sudo: false
 cache:
   bundler: true
 
+services:
+  - postgresql
+
 env:
   global:
     - CI=true
@@ -15,6 +18,7 @@ env:
 
   matrix:
     - "DB=sqlite3"
+    - "DB=postgresql"
 
 before_script:
   - cp spec/test_app/config/database.$DB.yml.travis spec/test_app/config/database.yml
