@@ -1,0 +1,31 @@
+language: ruby
+
+rvm:
+  - 2.4.1
+
+sudo: false
+
+cache:
+  bundler: true
+
+services:
+  - postgresql
+  - mysql
+
+env:
+  global:
+    - CI=true
+    - RAILS_ENV=test
+
+  matrix:
+    - "DB=sqlite3"
+    - "DB=postgresql"
+    - "DB=mysql"
+
+before_script:
+  - 'if [ $DB = "mysql" ]; then
+       mysql -e "create database travis_ci_test;";
+     elif [ $2 = "postgres" ]; then
+       psql -c "create database travis_ci_test;" -U postgres;
+     fi'
+  - cp spec/test_app/config/database.$DB.yml.travis spec/test_app/config/database.yml
