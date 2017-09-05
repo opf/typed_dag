@@ -1,19 +1,23 @@
 class CreateNodesAndEndges < ActiveRecord::Migration[5.1]
   def change
     create_table :messages do |t|
+      t.column :text, :string
     end
 
     create_table :relations do |t|
       t.references :ancestor, null: false
       t.references :descendant, null: false
-      t.column :type, :string
-      t.column :depth, :integer
 
-      t.index :depth
-      t.index :type
+      t.column :hierarchy, :integer, null: false, default: 0
+      t.column :invalidate, :integer, null: false, default: 0
+      t.column :mention, :integer, null: false, default: 0
+
+      t.index :hierarchy
+      t.index :invalidate
+      t.index :mention
     end
 
-    add_foreign_key :relations, :message, :ancestor
-    add_foreign_key :relations, :message, :descendant
+    add_foreign_key :relations, :messages, column: :ancestor_id
+    add_foreign_key :relations, :messages, column: :descendant_id
   end
 end

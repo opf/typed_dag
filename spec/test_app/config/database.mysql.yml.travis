@@ -6,4 +6,4 @@ default: &default
 test:
   <<: *default
   database: travis_ci_test
-  username: travis
+  username: root
