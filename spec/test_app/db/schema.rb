@@ -12,18 +12,26 @@
 
 ActiveRecord::Schema.define(version: 20170831093433) do
 
+  # These are extensions that must be enabled in order to support this database
+  enable_extension "plpgsql"
+
   create_table "messages", force: :cascade do |t|
+    t.string "text"
   end
 
   create_table "relations", force: :cascade do |t|
-    t.integer "ancestor_id", null: false
-    t.integer "descendant_id", null: false
-    t.string "type"
-    t.integer "depth"
+    t.bigint "ancestor_id", null: false
+    t.bigint "descendant_id", null: false
+    t.integer "hierarchy", default: 0, null: false
+    t.integer "invalidate", default: 0, null: false
+    t.integer "mention", default: 0, null: false
     t.index ["ancestor_id"], name: "index_relations_on_ancestor_id"
-    t.index ["depth"], name: "index_relations_on_depth"
     t.index ["descendant_id"], name: "index_relations_on_descendant_id"
-    t.index ["type"], name: "index_relations_on_type"
+    t.index ["hierarchy"], name: "index_relations_on_hierarchy"
+    t.index ["invalidate"], name: "index_relations_on_invalidate"
+    t.index ["mention"], name: "index_relations_on_mention"
   end
 
+  add_foreign_key "relations", "messages", column: "ancestor_id"
+  add_foreign_key "relations", "messages", column: "descendant_id"
 end

@@ -23,15 +23,22 @@ class TypedDag::Configuration
     config[:descendant_column] || 'descendant_id'
   end
 
-  def type_column
-    config[:type_column] || 'type'
+  def types
+    config[:types] || default_types
   end
 
-  def depth_column
-    config[:depth_column] || 'depth'
+  def type_columns
+    types.keys
   end
 
   private
 
   attr_accessor :config
+
+  def default_types
+    { hierarchy: { up: { name: :parent, limit: 1 },
+                   down: :children,
+                   all_up: :ancestors,
+                   all_down: :descendants } }
+  end
 end

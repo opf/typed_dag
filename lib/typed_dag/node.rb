@@ -4,9 +4,6 @@ require 'typed_dag/configuration'
 module TypedDag::Node
   extend ActiveSupport::Concern
 
-  included do
-  end
-
   module ClassMethods
     def acts_as_dag_node(options)
       @acts_as_dag_node_options = TypedDag::Configuration.new(options)
@@ -24,15 +21,25 @@ module TypedDag::Node
     extend ActiveSupport::Concern
 
     included do
-      def self.dag_hierarchy_relations_lambda(depth = nil)
+      def self.dag_relations_association_lambda(column, depth = nil)
         ->(instance) {
-          edges_conditions = { instance._dag_options.type_column => 'hierarchy' }
+          edge_table = instance._dag_options.edge_class_name.constantize.table_name
+          column_condition = { edge_table => { column => depth } }
 
-          edges_conditions[instance._dag_options.depth_column] = depth if depth
+          condition = if depth
+                        where(column_condition)
+                      else
+                        where.not(column_condition)
+                      end
 
-          where(instance._dag_options.edge_class_name.constantize.table_name => edges_conditions)
+          (instance._dag_options.type_columns - [column]).each do |undesired_column|
+            condition = condition.where(undesired_column => 0)
+          end
+
+          condition
         }
       end
+      private_class_method :dag_relations_association_lambda
 
       has_many :relations_from,
                class_name: _dag_options.edge_class_name,
@@ -44,48 +51,74 @@ module TypedDag::Node
                foreign_key: _dag_options.descendant_column,
                dependent: :destroy
 
-      has_one :parent_relation,
-              dag_hierarchy_relations_lambda(1),
-              class_name: _dag_options.edge_class_name,
-              foreign_key: _dag_options.descendant_column
+      _dag_options.types.each do |key, config|
+        if config[:up].is_a?(Hash) && config[:up][:limit] == 1
+          has_one :"#{config[:up][:name]}_relation",
+                  dag_relations_association_lambda(key, 1),
+                  class_name: _dag_options.edge_class_name,
+                  foreign_key: _dag_options.descendant_column
 
-      has_one :parent,
-              through: :parent_relation,
-              source: :ancestor
+          has_one config[:up][:name],
+                  through: :"#{config[:up][:name]}_relation",
+                  source: :ancestor
+        else
+          has_many :"#{config[:up]}_relation",
+                   dag_relations_association_lambda(key, 1),
+                   class_name: _dag_options.edge_class_name,
+                   foreign_key: _dag_options.descendant_column
 
-      has_many :child_relations,
-               dag_hierarchy_relations_lambda(1),
-               class_name: _dag_options.edge_class_name,
-               foreign_key: _dag_options.ancestor_column
+          has_many config[:up],
+                   through: :"#{config[:up]}_relation",
+                   source: :ancestor,
+                   dependent: :destroy
+        end
 
-      has_many :children,
-               through: :child_relations,
-               source: :descendant
+        has_many :"#{config[:down]}_relations",
+                 dag_relations_association_lambda(key, 1),
+                 class_name: _dag_options.edge_class_name,
+                 foreign_key: _dag_options.ancestor_column
 
-      has_many :descendant_relations,
-               dag_hierarchy_relations_lambda,
-               class_name: _dag_options.edge_class_name,
-               foreign_key: _dag_options.ancestor_column
+        has_many config[:down],
+                 through: :"#{config[:down]}_relations",
+                 source: :descendant
 
-      has_many :descendants,
-               through: :descendant_relations,
-               source: :descendant
+        has_many :"#{config[:all_down]}_relations",
+                 dag_relations_association_lambda(key),
+                 class_name: _dag_options.edge_class_name,
+                 foreign_key: _dag_options.ancestor_column
 
-      has_many :ancestor_relations,
-               dag_hierarchy_relations_lambda,
-               class_name: _dag_options.edge_class_name,
-               foreign_key: _dag_options.descendant_column
+        has_many config[:all_down],
+                 -> { distinct },
+                 through: :"#{config[:all_down]}_relations",
+                 source: :descendant
 
-      has_many :ancestors,
-               through: :ancestor_relations,
-               source: :ancestor
+        has_many :"#{config[:all_up]}_relations",
+                 dag_relations_association_lambda(key),
+                 class_name: _dag_options.edge_class_name,
+                 foreign_key: _dag_options.descendant_column
+
+        has_many config[:all_up],
+                 -> { distinct },
+                 through: :"#{config[:all_up]}_relations",
+                 source: :ancestor
+
+        define_method :"#{config[:all_down]}_of_depth" do |depth|
+          send(config[:all_down])
+            .where(_dag_options.edge_class_name.constantize.table_name => { key => depth })
+        end
+
+        define_method :"#{config[:all_up]}_of_depth" do |depth|
+          send(config[:all_up])
+            .where(_dag_options.edge_class_name.constantize.table_name => { key => depth })
+        end
+      end
     end
   end
 
   module InstanceMethods
     def leaf?
       !relations_from
-        .where(_dag_options.type_column => 'hierarchy')
+        .where(hierarchy: 1)
         .exists?
     end
 
@@ -100,12 +133,12 @@ module TypedDag::Node
     end
 
     def ancestor_edge(other_node)
-      ancestor_relations
+      ancestors_relations
         .where(_dag_options.edge_table_name => { _dag_options.ancestor_column => other_node })
     end
 
     def descendant_edge(other_node)
-      descendant_relations
+      descendants_relations
         .where(_dag_options.edge_table_name => { _dag_options.descendant_column => other_node })
     end
 

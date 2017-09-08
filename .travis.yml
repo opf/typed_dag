@@ -18,7 +18,6 @@ env:
     - RAILS_ENV=test
 
   matrix:
-    - "DB=sqlite3"
     - "DB=postgresql"
     - "DB=mysql"
 
