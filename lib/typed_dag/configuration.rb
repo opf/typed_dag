@@ -1,4 +1,25 @@
 class TypedDag::Configuration
+  def self.set(config)
+    config = [config] unless config.is_a?(Array)
+
+    @instances = config.map { |conf| new(conf) }
+  end
+
+  def self.[](class_name)
+    class_name = class_name.to_s
+
+    @instances.detect do |config|
+      config.node_class_name == class_name ||
+        config.edge_class_name == class_name
+    end
+  end
+
+  def self.each
+    @instances.each do |instance|
+      yield instance
+    end
+  end
+
   def initialize(config)
     self.config = config
   end
