@@ -4,16 +4,14 @@ require 'typed_dag/configuration'
 module TypedDag::Node
   extend ActiveSupport::Concern
 
+  included do
+    include InstanceMethods
+    include Associations
+  end
+
   module ClassMethods
-    def acts_as_dag_node(options)
-      @acts_as_dag_node_options = TypedDag::Configuration.new(options)
-
-      include InstanceMethods
-      include Associations
-    end
-
     def _dag_options
-      @acts_as_dag_node_options
+      TypedDag::Configuration[self]
     end
   end
 
@@ -22,8 +20,11 @@ module TypedDag::Node
 
     included do
       def self.dag_relations_association_lambda(column, depth = nil)
-        ->(instance) {
-          edge_table = instance._dag_options.edge_class_name.constantize.table_name
+        # memoize for closure
+        config = _dag_options
+
+        -> {
+          edge_table = config.edge_class_name.constantize.table_name
           column_condition = { edge_table => { column => depth } }
 
           condition = if depth
@@ -32,7 +33,7 @@ module TypedDag::Node
                         where.not(column_condition)
                       end
 
-          (instance._dag_options.type_columns - [column]).each do |undesired_column|
+          (config.type_columns - [column]).each do |undesired_column|
             condition = condition.where(undesired_column => 0)
           end
 
@@ -104,12 +105,12 @@ module TypedDag::Node
 
         define_method :"#{config[:all_down]}_of_depth" do |depth|
           send(config[:all_down])
-            .where(_dag_options.edge_class_name.constantize.table_name => { key => depth })
+            .where(_dag_options.edge_table_name => { key => depth })
         end
 
         define_method :"#{config[:all_up]}_of_depth" do |depth|
           send(config[:all_up])
-            .where(_dag_options.edge_class_name.constantize.table_name => { key => depth })
+            .where(_dag_options.edge_table_name => { key => depth })
         end
       end
     end

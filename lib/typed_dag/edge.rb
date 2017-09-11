@@ -5,16 +5,14 @@ require 'typed_dag/sql'
 module TypedDag::Edge
   extend ActiveSupport::Concern
 
+  included do
+    include InstanceMethods
+    include Associations
+  end
+
   module ClassMethods
-    def acts_as_dag_edge(options)
-      @acts_as_dag_edge_options = TypedDag::Configuration.new(options)
-
-      include InstanceMethods
-      include Associations
-    end
-
     def _dag_options
-      @acts_as_dag_edge_options
+      TypedDag::Configuration[self]
     end
   end
 
