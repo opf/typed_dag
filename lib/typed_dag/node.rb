@@ -112,6 +112,20 @@ module TypedDag::Node
           send(config[:all_up])
             .where(_dag_options.edge_table_name => { key => depth })
         end
+
+        define_method :"self_and_#{config[:all_up]}" do
+          ancestors_scope = self.class.where(id: send(config[:all_up]))
+          self_scope = self.class.where(id: id)
+
+          ancestors_scope.or(self_scope)
+        end
+
+        define_method :"self_and_#{config[:all_down]}" do
+          ancestors_scope = self.class.where(id: send(config[:all_down]))
+          self_scope = self.class.where(id: id)
+
+          ancestors_scope.or(self_scope)
+        end
       end
     end
   end

@@ -424,6 +424,86 @@ RSpec.describe TypedDag do
       end
     end
 
+    describe "#self_and_#{all_up} (self and transitive up)" do
+      description = <<-WITH
+
+        DAG:
+          A
+      WITH
+      context description do
+        let!(:a) { Message.create text: 'A' }
+
+        it 'is A' do
+          expect(a.send(:"self_and_#{all_up}"))
+            .to match_array [a]
+        end
+      end
+
+      description = <<-WITH
+
+        DAG:
+          C
+          |
+          |
+          +
+          B
+          |
+          |
+          +
+          A
+      WITH
+      context description do
+        let!(:c) { Message.create text: 'C' }
+        let!(:b) { message_with_up 'B', c }
+        let!(:a) { message_with_up 'A', b }
+
+        it 'for A is A, B and C' do
+          expect(a.send(:"self_and_#{all_up}"))
+            .to match_array([a, b, c])
+        end
+      end
+    end
+
+    describe "#self_and_#{all_down} (self and transitive down)" do
+      description = <<-WITH
+
+        DAG:
+          A
+      WITH
+      context description do
+        let!(:a) { Message.create text: 'A' }
+
+        it 'is A' do
+          expect(a.send(:"self_and_#{all_down}"))
+            .to match_array [a]
+        end
+      end
+
+      description = <<-WITH
+
+        DAG:
+          C
+          |
+          |
+          +
+          B
+          |
+          |
+          +
+          A
+      WITH
+      context description do
+        let!(:c) { Message.create text: 'C' }
+        let!(:b) { message_with_up 'B', c }
+        let!(:a) { message_with_up 'A', b }
+
+        it 'for C is A, B and C' do
+          expect(c.send(:"self_and_#{all_down}"))
+            .to match_array([a, b, c])
+        end
+      end
+    end
+
     describe "##{up}= (directly up)" do
       description = <<-WITH
 
