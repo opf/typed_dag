@@ -32,8 +32,12 @@ class TypedDag::Configuration
     config[:edge_class_name]
   end
 
+  def edge_class
+    edge_class_name.constantize
+  end
+
   def edge_table_name
-    edge_class_name.constantize.table_name
+    edge_class.table_name
   end
 
   def ancestor_column

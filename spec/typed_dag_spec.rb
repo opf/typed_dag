@@ -1453,5 +1453,176 @@ RSpec.describe TypedDag do
         end
       end
     end
+
+    describe '#rebuild_dag!' do
+      description = <<-'WITH'
+
+        DAG (messed up transitive closures):
+          A ------
+         /|\      |
+        i i i     h
+       +  +  +    +
+      B-i+C+i-D   H
+      |   |       |
+      i   |       h
+      +   i       +
+      E   |       I
+       \  |      /
+        i |     /
+         ++    /
+          F   /
+          |  /
+          i h
+          ++
+          G
+
+      WITH
+      context description do
+        let!(:a) { Message.create text: 'A' }
+        let!(:b) { create_message_with_invalidated_by('B', a) }
+        let!(:d) { create_message_with_invalidated_by('D', a) }
+        let!(:c) { create_message_with_invalidated_by('C', [a, b, d]) }
+        let!(:e) { create_message_with_invalidated_by('E', b) }
+        let!(:f) { create_message_with_invalidated_by('F', [e, c]) }
+        let!(:h) { Message.create text: 'H', parent: a }
+        let!(:i) { Message.create text: 'I', parent: h }
+        let!(:g) do
+          msg = Message.create text: 'G', parent: i
+          msg.invalidated_by = [f]
+          msg
+        end
+
+        before do
+          Relation
+            .where('hierarchy + invalidate > 1')
+            .update_all('hierarchy = hierarchy + 10, invalidate = invalidate + 10')
+
+          Message.rebuild_dag!
+        end
+
+        it '#descendants_of_depth(1) for A is H' do
+          expect(a.descendants_of_depth(1))
+            .to match_array([h])
+        end
+
+        it '#all_invalidates_of_depth(1) for A is B, C, D' do
+          expect(a.all_invalidates_of_depth(1))
+            .to match_array([b, c, d])
+        end
+
+        it '#descendants_of_depth(2) for A is H' do
+          expect(a.descendants_of_depth(2))
+            .to match_array([i])
+        end
+
+        it '#all_invalidates_of_depth(2) for A is C, E, F' do
+          expect(a.all_invalidates_of_depth(2))
+            .to match_array([c, e, f])
+        end
+
+        it '#descendants_of_depth(3) for A is G' do
+          expect(a.descendants_of_depth(3))
+            .to match_array([g])
+        end
+
+        it '#all_invalidates_of_depth(3) for A is G and F' do
+          expect(a.all_invalidates_of_depth(3))
+            .to match_array([g, f])
+        end
+
+        it '#descendants_of_depth(4) for A is empty' do
+          expect(a.descendants_of_depth(4))
+            .to be_empty
+        end
+
+        it '#all_invalidates_of_depth(4) for A is G' do
+          expect(a.all_invalidates_of_depth(4))
+            .to match_array([g])
+        end
+      end
+
+      description = <<-'WITH'
+
+        DAG (invalid) before:
+           A
+          + \
+         i   h
+        /     +
+       C+--h---B
+
+        DAG after:
+           A
+            \
+             h
+              +
+       C+--h---B
+      WITH
+
+      context description do
+        let!(:a) { Message.create text: 'A' }
+        let!(:b) { Message.create text: 'B', parent: a }
+        let!(:c) { Message.create text: 'C', parent: b }
+        let!(:invalid_relation) do
+          Relation
+            .new(ancestor: c,
+                 descendant: a,
+                 invalidate: 1)
+            .save(validate: false)
+        end
+
+        before do
+          Message.rebuild_dag!
+        end
+
+        it '#descendants_of_depth(1) for A is B' do
+          expect(a.descendants_of_depth(1))
+            .to match_array([b])
+        end
+
+        it '#descendants_of_depth(2) for A is C' do
+          expect(a.descendants_of_depth(2))
+            .to match_array([c])
+        end
+
+        it '#all_invalidates_of_depth(1) for C is empty' do
+          expect(c.all_invalidates_of_depth(1))
+            .to be_empty
+        end
+      end
+
+      description = <<-'WITH'
+
+        DAG (invalid) before:
+        --+A
+       |  + \
+       i i   h
+       |/     +
+       C+--h---B
+      WITH
+
+      context description do
+        let!(:a) { Message.create text: 'A' }
+        let!(:b) { Message.create text: 'B', parent: a }
+        let!(:c) { Message.create text: 'C', parent: b }
+        let!(:invalid_relation) do
+          Relation
+            .new(ancestor: c,
+                 descendant: a,
+                 invalidate: 1)
+            .save(validate: false)
+
+          Relation
+            .new(ancestor: c,
+                 descendant: a,
+                 invalidate: 1)
+            .save(validate: false)
+        end
+
+        it 'throws an error if more attepts than specified are made' do
+          expect { Message.rebuild_dag!(1) }
+            .to raise_error(TypedDag::RebuildDag::AttemptsExceededError)
+        end
+      end
+    end
   end
 end

@@ -63,7 +63,11 @@ module TypedDag::Edge
       after_create :add_closures
       after_destroy :truncate_closures
 
-      validates_uniqueness_of :ancestor, scope: :descendant
+      validates_uniqueness_of :ancestor,
+                              scope: [:descendant],
+                              conditions: -> {
+                                where.not("#{_dag_options.type_columns.join(' + ')} > 1")
+                              }
 
       belongs_to :ancestor,
                  class_name: _dag_options.node_class_name,
