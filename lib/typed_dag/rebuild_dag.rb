@@ -49,8 +49,8 @@ module TypedDag::RebuildDag
 
     def insert_closure_of_depth(depth)
       ActiveRecord::Base
-      .connection
-      .update TypedDag::Sql::InsertClosureOfDepth.sql(_dag_options, depth)
+        .connection
+        .update TypedDag::Sql::InsertClosureOfDepth.sql(_dag_options, depth)
     end
 
     def get_circular(depth)

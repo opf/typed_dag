@@ -9,9 +9,16 @@ module TypedDag::Node
     include InstanceMethods
     include Associations
     include ::TypedDag::RebuildDag
+
+    _dag_options.types.each do |key, _|
+      define_singleton_method :"#{key}_leaves" do
+        where.not(id: _dag_options.edge_class.select(_dag_options.ancestor_column)
+                                  .where(key => 1))
+      end
+    end
   end
 
-  module ClassMethods
+  class_methods do
     def _dag_options
       TypedDag::Configuration[self]
     end
@@ -26,7 +33,7 @@ module TypedDag::Node
         config = _dag_options
 
         -> {
-          edge_table = config.edge_class_name.constantize.table_name
+          edge_table = config.edge_table_name
           column_condition = { edge_table => { column => depth } }
 
           condition = if depth
@@ -127,6 +134,11 @@ module TypedDag::Node
           self_scope = self.class.where(id: id)
 
           ancestors_scope.or(self_scope)
+        end
+
+        define_method :"#{key}_leaves" do
+          send(config[:all_down])
+            .where(id: self.class.send("#{key}_leaves"))
         end
       end
     end
