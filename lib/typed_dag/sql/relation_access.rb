@@ -1,26 +1,19 @@
+require 'typed_dag/sql/helper'
+
 module TypedDag::Sql::RelationAccess
   extend ActiveSupport::Concern
 
   included do
     private
 
-    attr_accessor :relation
+    attr_accessor :relation, :helper
 
-    def table_name
-      relation.class.table_name
-    end
-
-    def ancestor_column
-      relation._dag_options.ancestor_column
-    end
-
-    def descendant_column
-      relation._dag_options.descendant_column
-    end
-
-    def type_columns
-      relation._dag_options.type_columns
-    end
+    delegate :table_name,
+             :ancestor_column,
+             :descendant_column,
+             :type_columns,
+             :type_select_list,
+             to: :helper
 
     def id_value
       relation.id
@@ -40,8 +33,8 @@ module TypedDag::Sql::RelationAccess
       end
     end
 
-    def type_select_list
-      type_columns.join(', ')
+    def helper
+      @helper ||= ::TypedDag::Sql::Helper.new(relation._dag_options)
     end
   end
 end

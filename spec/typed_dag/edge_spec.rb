@@ -95,5 +95,40 @@ RSpec.describe 'Edge' do
           .to eql :taken
       end
     end
+
+    context 'with a closure relation already in place between the two nodes (same type)' do
+      let(:closure_relation) do
+        Relation.create ancestor: ancestor,
+                        descendant: descendant,
+                        invalidate: 2
+      end
+
+      before do
+        closure_relation
+      end
+
+      it 'is valid' do
+        expect(relation)
+          .to be_valid
+      end
+    end
+
+    context 'with a closure relation already in place between the two nodes (mixed type)' do
+      let(:closure_relation) do
+        Relation.create ancestor: ancestor,
+                        descendant: descendant,
+                        invalidate: 1,
+                        hierarchy: 1
+      end
+
+      before do
+        closure_relation
+      end
+
+      it 'is valid' do
+        expect(relation)
+          .to be_valid
+      end
+    end
   end
 end

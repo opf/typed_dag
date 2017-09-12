@@ -1,5 +1,6 @@
 require 'active_support/concern'
 require 'typed_dag/configuration'
+require 'typed_dag/rebuild_dag'
 
 module TypedDag::Node
   extend ActiveSupport::Concern
@@ -7,6 +8,7 @@ module TypedDag::Node
   included do
     include InstanceMethods
     include Associations
+    include ::TypedDag::RebuildDag
   end
 
   module ClassMethods
