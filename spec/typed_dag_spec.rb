@@ -50,58 +50,59 @@ RSpec.describe TypedDag do
           .not_to be_leaf
       end
     end
+  end
 
-    describe '#in_closure?' do
-      it 'is false' do
-        expect(message.in_closure?(other_message))
-          .to be_falsey
+  describe '#in_closure?' do
+    it 'is false' do
+      expect(message.in_closure?(other_message))
+        .to be_falsey
+    end
+
+    context 'with a grandparent' do
+      before do
+        parent_message
+        grandparent_message
       end
 
-      context 'with a grandparent' do
-        before do
-          parent_message
-          grandparent_message
-        end
-
-        it 'is true' do
-          expect(message.in_closure?(grandparent_message))
-            .to be_truthy
-        end
-      end
-
-      context 'with a grandchild' do
-        before do
-          child_message
-          grandchild_message
-        end
-
-        it 'is true' do
-          expect(message.in_closure?(grandchild_message))
-            .to be_truthy
-        end
+      it 'is true' do
+        expect(message.in_closure?(grandparent_message))
+          .to be_truthy
       end
     end
 
-    describe '#child?' do
-      it 'is false' do
-        expect(message)
-          .not_to be_child
+    context 'with a grandchild' do
+      before do
+        child_message
+        grandchild_message
       end
 
-      context 'with a parent' do
-        before do
-          parent_message
-        end
+      it 'is true' do
+        expect(message.in_closure?(grandchild_message))
+          .to be_truthy
+      end
+    end
+  end
 
-        it 'is true' do
-          expect(message)
-            .to be_child
-        end
+  describe '#child?' do
+    it 'is false' do
+      expect(message)
+        .not_to be_child
+    end
+
+    context 'with a parent' do
+      before do
+        parent_message
+      end
+
+      it 'is true' do
+        expect(message)
+          .to be_child
       end
     end
   end
 
   shared_examples_for 'single typed dag' do |configuration|
+    type = configuration[:type]
     down = configuration[:down]
     up = configuration[:up].is_a?(Hash) ? configuration[:up][:name] : configuration[:up]
     up_limit = configuration[:up].is_a?(Hash) ? configuration[:up][:limit] : nil
@@ -129,6 +130,92 @@ RSpec.describe TypedDag do
         m = Message.create text: text
         m.send("#{up}=", up_one_or_array(parent))
         m
+      end
+    end
+
+    describe ".#{type}_leaves" do
+      let(:method_name) { "#{type}_leaves" }
+
+      description = <<-'WITH'
+
+        DAG:
+                A
+
+      WITH
+      context description do
+        let!(:a) { Message.create text: 'A' }
+
+        it 'is A' do
+          expect(Message.send(method_name))
+            .to match_array [a]
+        end
+      end
+      description = <<-'WITH'
+
+        DAG:
+                A
+               / \
+              /   \
+             +     +
+            B       F
+           / \
+          /   \
+         +     +
+        C       D
+                |
+                |
+                +
+                E
+
+      WITH
+      context description do
+        let!(:a) { Message.create text: 'A' }
+        let!(:b) { message_with_up 'B', a }
+        let!(:c) { message_with_up 'C', b }
+        let!(:d) { message_with_up 'D', b }
+        let!(:e) { message_with_up 'E', d }
+        let!(:f) { message_with_up 'F', a }
+
+        it 'is C, E, F' do
+          expect(Message.send(method_name))
+            .to match_array [c, e, f]
+        end
+      end
+    end
+
+    describe "##{type}_leaves" do
+      let(:method_name) { "#{type}_leaves" }
+
+      description = <<-'WITH'
+
+        DAG:
+                A
+               / \
+              /   \
+             +     +
+            B       F
+           / \
+          /   \
+         +     +
+        C       D
+                |
+                |
+                +
+                E
+
+      WITH
+      context description do
+        let!(:a) { Message.create text: 'A' }
+        let!(:b) { message_with_up 'B', a }
+        let!(:c) { message_with_up 'C', b }
+        let!(:d) { message_with_up 'D', b }
+        let!(:e) { message_with_up 'E', d }
+        let!(:f) { message_with_up 'F', a }
+
+        it 'for A is C, E, F' do
+          expect(a.send(method_name))
+            .to match_array [c, e, f]
+        end
       end
     end
 
@@ -1128,6 +1215,7 @@ RSpec.describe TypedDag do
 
   context 'hierarchy relations' do
     it_behaves_like 'single typed dag',
+                    type: :hierarchy,
                     down: :children,
                     up: { name: :parent, limit: 1 },
                     all_down: :descendants,
@@ -1136,6 +1224,7 @@ RSpec.describe TypedDag do
 
   context 'invalidate relations' do
     it_behaves_like 'single typed dag',
+                    type: :invalidate,
                     down: :invalidates,
                     up: :invalidated_by,
                     all_down: :all_invalidates,
