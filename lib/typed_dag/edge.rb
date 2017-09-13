@@ -75,6 +75,39 @@ module TypedDag::Edge
       belongs_to :descendant,
                  class_name: _dag_options.node_class_name,
                  foreign_key: _dag_options.descendant_column
+
+      validate :no_circular_dependency
+
+      def self.with_type_columns_not(column_requirements)
+        where
+          .not(column_requirements)
+          .with_type_colums_0(_dag_options.type_columns - column_requirements.keys)
+      end
+
+      def self.with_type_columns(column_requirements)
+        where(column_requirements)
+          .with_type_colums_0(_dag_options.type_columns - column_requirements.keys)
+      end
+
+      def self.with_type_colums_0(columns)
+        requirements = columns.map { |column| [column, 0] }.to_h
+
+        where(requirements)
+      end
+
+      def self.of_ancestor_and_descendant(ancestor, descendant)
+        where(_dag_options.ancestor_column => ancestor,
+              _dag_options.descendant_column => descendant)
+      end
+
+      private
+
+      def no_circular_dependency
+        if self.class.of_ancestor_and_descendant(send(_dag_options.descendant_column),
+                                                 send(_dag_options.ancestor_column)).exists?
+          errors.add :base, :'typed_dag.circular_dependency'
+        end
+      end
     end
   end
 end
