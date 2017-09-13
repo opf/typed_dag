@@ -28,25 +28,13 @@ module TypedDag::Node
     extend ActiveSupport::Concern
 
     included do
-      def self.dag_relations_association_lambda(column, depth = nil)
-        # memoize for closure
-        config = _dag_options
-
+      def self.dag_relations_association_lambda(column, depth = 0)
         -> {
-          edge_table = config.edge_table_name
-          column_condition = { edge_table => { column => depth } }
-
-          condition = if depth
-                        where(column_condition)
-                      else
-                        where.not(column_condition)
-                      end
-
-          (config.type_columns - [column]).each do |undesired_column|
-            condition = condition.where(undesired_column => 0)
+          if depth != 0
+            with_type_columns(column => depth)
+          else
+            with_type_columns_not(column => depth)
           end
-
-          condition
         }
       end
       private_class_method :dag_relations_association_lambda
@@ -130,10 +118,10 @@ module TypedDag::Node
         end
 
         define_method :"self_and_#{config[:all_down]}" do
-          ancestors_scope = self.class.where(id: send(config[:all_down]))
+          descendant_scope = self.class.where(id: send(config[:all_down]))
           self_scope = self.class.where(id: id)
 
-          ancestors_scope.or(self_scope)
+          descendant_scope.or(self_scope)
         end
 
         define_method :"#{key}_leaves" do
