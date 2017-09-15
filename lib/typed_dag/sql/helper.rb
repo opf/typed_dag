@@ -7,12 +7,12 @@ class TypedDag::Sql::Helper
     configuration.edge_table_name
   end
 
-  def ancestor_column
-    configuration.ancestor_column
+  def to_column
+    configuration.to_column
   end
 
-  def descendant_column
-    configuration.descendant_column
+  def from_column
+    configuration.from_column
   end
 
   def type_columns

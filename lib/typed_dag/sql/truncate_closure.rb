@@ -19,21 +19,21 @@ module TypedDag::Sql::TruncateClosure
         WHERE id IN
           (SELECT id
           FROM (
-            SELECT COUNT(id) count, #{ancestor_column}, #{descendant_column}, #{type_select_list}
+            SELECT COUNT(id) count, #{from_column}, #{to_column}, #{type_select_list}
             FROM (
 
-               #{select_relations_joined_by_descendant_and_ancestor}
+               #{select_relations_joined_by_to_and_from}
 
              UNION ALL
 
-                #{select_relations_starting_from_descendant}
+                #{select_relations_starting_from_to}
 
              UNION ALL
 
-                #{select_relations_ending_in_ancestor}
+                #{select_relations_ending_in_from}
 
              ) aggregation
-             GROUP BY #{ancestor_column}, #{descendant_column}, #{type_select_list}) criteria
+             GROUP BY #{from_column}, #{to_column}, #{type_select_list}) criteria
 
           JOIN
             (#{rank_similar_relations}) ranked
@@ -46,33 +46,33 @@ module TypedDag::Sql::TruncateClosure
 
     attr_accessor :relation
 
-    def select_relations_joined_by_descendant_and_ancestor
+    def select_relations_joined_by_to_and_from
       <<-SQL
-        SELECT ancestors.id, ancestors.#{ancestor_column}, descendants.#{descendant_column}, #{type_sums_select_list}
+        SELECT froms.id, froms.#{from_column}, tos.#{to_column}, #{type_sums_select_list}
           FROM
-            relations ancestors
+            #{table_name} froms
           JOIN
-            relations descendants
+            #{table_name} tos
           ON
-              ancestors.#{descendant_column} = #{ancestor_id_value} AND descendants.#{ancestor_column} = #{ancestor_id_value}
+              froms.#{to_column} = #{from_id_value} AND tos.#{from_column} = #{from_id_value}
             AND
-              ancestors.#{descendant_column} = descendants.#{ancestor_column}
+              froms.#{to_column} = tos.#{from_column}
       SQL
     end
 
-    def select_relations_starting_from_descendant
+    def select_relations_starting_from_to
       <<-SQL
-        SELECT id, #{ancestor_id_value}, #{descendant_column}, #{type_sum_value_select_list}
-          FROM relations
-          WHERE #{ancestor_column} = #{descendant_id_value}
+        SELECT id, #{from_id_value}, #{to_column}, #{type_sum_value_select_list}
+          FROM #{table_name}
+          WHERE #{from_column} = #{to_id_value}
       SQL
     end
 
-    def select_relations_ending_in_ancestor
+    def select_relations_ending_in_from
       <<-SQL
-        SELECT id, #{ancestor_column}, #{descendant_id_value}, #{type_sum_value_select_list}
-             FROM relations
-             WHERE #{descendant_column} = #{ancestor_id_value}
+        SELECT id, #{from_column}, #{to_id_value}, #{type_sum_value_select_list}
+             FROM #{table_name}
+             WHERE #{to_column} = #{from_id_value}
       SQL
     end
 
@@ -86,8 +86,8 @@ module TypedDag::Sql::TruncateClosure
 
     def ranked_critieria_join_condition
       <<-SQL
-        ranked.#{ancestor_column} = criteria.#{ancestor_column}
-        AND ranked.#{descendant_column} = criteria.#{descendant_column}
+        ranked.#{from_column} = criteria.#{from_column}
+        AND ranked.#{to_column} = criteria.#{to_column}
         AND #{types_equality_condition}
         AND count >= row_number
       SQL
@@ -113,7 +113,7 @@ module TypedDag::Sql::TruncateClosure
 
     def type_sums_select_list
       type_columns.map do |column|
-        "ancestors.#{column} + descendants.#{column} AS #{column}"
+        "froms.#{column} + tos.#{column} AS #{column}"
       end.join(', ')
     end
 
@@ -125,31 +125,31 @@ module TypedDag::Sql::TruncateClosure
       <<-SQL
         SELECT
           id,
-          #{ancestor_column},
-          #{descendant_column},
+          #{from_column},
+          #{to_column},
           #{type_select_list},
           greatest(@cur_count := IF(#{compare_mysql_variables},
                                  @cur_count + 1, 1),
                    least(0, #{assign_mysql_variables})) AS row_number
         FROM
-          relations
+          #{table_name}
 
         CROSS JOIN (SELECT #{initialize_mysql_variables}) params_initialization
 
         WHERE
           #{only_relations_in_closure_condition}
 
-        ORDER BY #{ancestor_column}, #{descendant_column}, #{type_select_list}
+        ORDER BY #{from_column}, #{to_column}, #{type_select_list}
       SQL
     end
 
     def rank_similar_relations_postgresql
       <<-SQL
         SELECT *, ROW_NUMBER() OVER(
-          PARTITION BY #{ancestor_column}, #{descendant_column}, #{type_select_list}
+          PARTITION BY #{from_column}, #{to_column}, #{type_select_list}
         )
         FROM
-          relations
+          #{table_name}
         WHERE
           #{only_relations_in_closure_condition}
       SQL
@@ -157,16 +157,16 @@ module TypedDag::Sql::TruncateClosure
 
     def only_relations_in_closure_condition
       <<-SQL
-        #{ancestor_column} IN (SELECT #{ancestor_column} from relations where #{descendant_column} = #{ancestor_id_value}) OR #{ancestor_column} = #{ancestor_id_value}
+        #{from_column} IN (SELECT #{from_column} FROM #{table_name} WHERE #{to_column} = #{from_id_value}) OR #{from_column} = #{from_id_value}
       AND
-        #{descendant_column} IN (SELECT #{descendant_column} from relations where #{ancestor_column} = #{ancestor_id_value})
+        #{to_column} IN (SELECT #{to_column} FROM #{table_name} WHERE #{from_column} = #{from_id_value})
       SQL
     end
 
     def initialize_mysql_variables
       variable_string = "@cur_count := NULL,
-                         @cur_#{ancestor_column} := NULL,
-                         @cur_#{descendant_column} := NULL"
+                         @cur_#{from_column} := NULL,
+                         @cur_#{to_column} := NULL"
 
       type_columns.each do |column|
         variable_string += ", @cur_#{column} := NULL"
@@ -176,8 +176,8 @@ module TypedDag::Sql::TruncateClosure
     end
 
     def assign_mysql_variables
-      variable_string = "@cur_#{ancestor_column} := #{ancestor_column},
-                         @cur_#{descendant_column} := #{descendant_column}"
+      variable_string = "@cur_#{from_column} := #{from_column},
+                         @cur_#{to_column} := #{to_column}"
 
       type_columns.each do |column|
         variable_string += ", @cur_#{column} := #{column}"
@@ -187,8 +187,8 @@ module TypedDag::Sql::TruncateClosure
     end
 
     def compare_mysql_variables
-      variable_string = "@cur_#{ancestor_column} = #{ancestor_column} AND
-                         @cur_#{descendant_column} = #{descendant_column}"
+      variable_string = "@cur_#{from_column} = #{from_column} AND
+                         @cur_#{to_column} = #{to_column}"
 
       type_columns.each do |column|
         variable_string += " AND @cur_#{column} = #{column}"

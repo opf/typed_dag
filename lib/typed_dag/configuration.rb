@@ -40,12 +40,12 @@ class TypedDag::Configuration
     edge_class.table_name
   end
 
-  def ancestor_column
-    config[:ancestor_column] || 'ancestor_id'
+  def from_column
+    config[:from_column] || 'from_id'
   end
 
-  def descendant_column
-    config[:descendant_column] || 'descendant_id'
+  def to_column
+    config[:to_column] || 'to_id'
   end
 
   def types
@@ -61,9 +61,9 @@ class TypedDag::Configuration
   attr_accessor :config
 
   def default_types
-    { hierarchy: { up: { name: :parent, limit: 1 },
-                   down: :children,
-                   all_up: :ancestors,
-                   all_down: :descendants } }
+    { hierarchy: { from: { name: :parent, limit: 1 },
+                   to: :children,
+                   all_from: :ancestors,
+                   all_to: :descendants } }
   end
 end

@@ -13,8 +13,8 @@ module TypedDag::Sql::GetCircular
     def sql(depth)
       <<-SQL
         SELECT
-          r1.#{helper.ancestor_column},
-          r1.#{helper.descendant_column}
+          r1.#{helper.from_column},
+          r1.#{helper.to_column}
         FROM #{helper.table_name} r1
         JOIN #{helper.table_name} r2
         ON #{join_condition(depth)}
@@ -27,8 +27,8 @@ module TypedDag::Sql::GetCircular
 
     def join_condition(depth)
       <<-SQL
-        r1.#{helper.ancestor_column} = r2.#{helper.descendant_column}
-        AND r1.#{helper.descendant_column} = r2.#{helper.ancestor_column}
+        r1.#{helper.from_column} = r2.#{helper.to_column}
+        AND r1.#{helper.to_column} = r2.#{helper.from_column}
         AND (#{helper.sum_of_type_columns('r1.')} = 1)
         AND (#{helper.sum_of_type_columns('r2.')} = #{depth})
       SQL

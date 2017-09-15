@@ -12,7 +12,7 @@ module TypedDag::Node
 
     _dag_options.types.each do |key, _|
       define_singleton_method :"#{key}_leaves" do
-        where.not(id: _dag_options.edge_class.select(_dag_options.ancestor_column)
+        where.not(id: _dag_options.edge_class.select(_dag_options.from_column)
                                   .where(key => 1))
       end
     end
@@ -41,91 +41,91 @@ module TypedDag::Node
 
       has_many :relations_from,
                class_name: _dag_options.edge_class_name,
-               foreign_key: _dag_options.ancestor_column,
+               foreign_key: _dag_options.from_column,
                dependent: :destroy
 
       has_many :relations_to,
                class_name: _dag_options.edge_class_name,
-               foreign_key: _dag_options.descendant_column,
+               foreign_key: _dag_options.to_column,
                dependent: :destroy
 
       _dag_options.types.each do |key, config|
-        if config[:up].is_a?(Hash) && config[:up][:limit] == 1
-          has_one :"#{config[:up][:name]}_relation",
+        if config[:from].is_a?(Hash) && config[:from][:limit] == 1
+          has_one :"#{config[:from][:name]}_relation",
                   dag_relations_association_lambda(key, 1),
                   class_name: _dag_options.edge_class_name,
-                  foreign_key: _dag_options.descendant_column
+                  foreign_key: _dag_options.to_column
 
-          has_one config[:up][:name],
-                  through: :"#{config[:up][:name]}_relation",
-                  source: :ancestor
+          has_one config[:from][:name],
+                  through: :"#{config[:from][:name]}_relation",
+                  source: :from
         else
-          has_many :"#{config[:up]}_relations",
+          has_many :"#{config[:from]}_relations",
                    dag_relations_association_lambda(key, 1),
                    class_name: _dag_options.edge_class_name,
-                   foreign_key: _dag_options.descendant_column
+                   foreign_key: _dag_options.to_column
 
-          has_many config[:up],
-                   through: :"#{config[:up]}_relations",
-                   source: :ancestor,
+          has_many config[:from],
+                   through: :"#{config[:from]}_relations",
+                   source: :from,
                    dependent: :destroy
         end
 
-        has_many :"#{config[:down]}_relations",
+        has_many :"#{config[:to]}_relations",
                  dag_relations_association_lambda(key, 1),
                  class_name: _dag_options.edge_class_name,
-                 foreign_key: _dag_options.ancestor_column
+                 foreign_key: _dag_options.from_column
 
-        has_many config[:down],
-                 through: :"#{config[:down]}_relations",
-                 source: :descendant
+        has_many config[:to],
+                 through: :"#{config[:to]}_relations",
+                 source: :to
 
-        has_many :"#{config[:all_down]}_relations",
+        has_many :"#{config[:all_to]}_relations",
                  dag_relations_association_lambda(key),
                  class_name: _dag_options.edge_class_name,
-                 foreign_key: _dag_options.ancestor_column
+                 foreign_key: _dag_options.from_column
 
-        has_many config[:all_down],
+        has_many config[:all_to],
                  -> { distinct },
-                 through: :"#{config[:all_down]}_relations",
-                 source: :descendant
+                 through: :"#{config[:all_to]}_relations",
+                 source: :to
 
-        has_many :"#{config[:all_up]}_relations",
+        has_many :"#{config[:all_from]}_relations",
                  dag_relations_association_lambda(key),
                  class_name: _dag_options.edge_class_name,
-                 foreign_key: _dag_options.descendant_column
+                 foreign_key: _dag_options.to_column
 
-        has_many config[:all_up],
+        has_many config[:all_from],
                  -> { distinct },
-                 through: :"#{config[:all_up]}_relations",
-                 source: :ancestor
+                 through: :"#{config[:all_from]}_relations",
+                 source: :from
 
-        define_method :"#{config[:all_down]}_of_depth" do |depth|
-          send(config[:all_down])
+        define_method :"#{config[:all_to]}_of_depth" do |depth|
+          send(config[:all_to])
             .where(_dag_options.edge_table_name => { key => depth })
         end
 
-        define_method :"#{config[:all_up]}_of_depth" do |depth|
-          send(config[:all_up])
+        define_method :"#{config[:all_from]}_of_depth" do |depth|
+          send(config[:all_from])
             .where(_dag_options.edge_table_name => { key => depth })
         end
 
-        define_method :"self_and_#{config[:all_up]}" do
-          ancestors_scope = self.class.where(id: send(config[:all_up]))
+        define_method :"self_and_#{config[:all_from]}" do
+          froms_scope = self.class.where(id: send(config[:all_from]))
           self_scope = self.class.where(id: id)
 
-          ancestors_scope.or(self_scope)
+          froms_scope.or(self_scope)
         end
 
-        define_method :"self_and_#{config[:all_down]}" do
-          descendant_scope = self.class.where(id: send(config[:all_down]))
+        define_method :"self_and_#{config[:all_to]}" do
+          to_scope = self.class.where(id: send(config[:all_to]))
           self_scope = self.class.where(id: id)
 
-          descendant_scope.or(self_scope)
+          to_scope.or(self_scope)
         end
 
         define_method :"#{key}_leaves" do
-          send(config[:all_down])
+          send(config[:all_to])
             .where(id: self.class.send("#{key}_leaves"))
         end
       end
@@ -144,19 +144,19 @@ module TypedDag::Node
     end
 
     def in_closure?(other_node)
-      ancestor_edge(other_node)
-        .or(descendant_edge(other_node))
+      from_edge(other_node)
+        .or(to_edge(other_node))
         .exists?
     end
 
-    def ancestor_edge(other_node)
+    def from_edge(other_node)
       ancestors_relations
-        .where(_dag_options.edge_table_name => { _dag_options.ancestor_column => other_node })
+        .where(_dag_options.edge_table_name => { _dag_options.from_column => other_node })
     end
 
-    def descendant_edge(other_node)
+    def to_edge(other_node)
       descendants_relations
-        .where(_dag_options.edge_table_name => { _dag_options.descendant_column => other_node })
+        .where(_dag_options.edge_table_name => { _dag_options.to_column => other_node })
     end
 
     def _dag_options

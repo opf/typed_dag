@@ -30,8 +30,8 @@ module TypedDag::Sql::RemoveInvalidRelation
 
     def where(ids)
       <<-SQL
-        #{helper.ancestor_column} IN (#{ids.join(', ')})
-        AND #{helper.descendant_column} IN (#{ids.join(', ')})
+        #{helper.from_column} IN (#{ids.join(', ')})
+        AND #{helper.to_column} IN (#{ids.join(', ')})
         AND #{helper.sum_of_type_columns} = 1
       SQL
     end

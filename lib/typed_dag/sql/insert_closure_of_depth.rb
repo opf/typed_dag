@@ -25,22 +25,22 @@ module TypedDag::Sql::InsertClosureOfDepth
     private
 
     def insert_list
-      [helper.ancestor_column,
-       helper.descendant_column,
+      [helper.from_column,
+       helper.to_column,
        helper.type_select_list].join(', ')
     end
 
     def select_list
       <<-SQL
-        r1.#{helper.ancestor_column},
-        r2.#{helper.descendant_column},
+        r1.#{helper.from_column},
+        r2.#{helper.to_column},
         #{helper.type_select_summed_columns('r1', 'r2')}
       SQL
     end
 
     def join_condition(depth)
       <<-SQL
-        r1.#{helper.descendant_column} = r2.#{helper.ancestor_column}
+        r1.#{helper.to_column} = r2.#{helper.from_column}
         AND (#{helper.sum_of_type_columns('r1.')} = #{depth})
         AND (#{helper.sum_of_type_columns('r2.')} = 1)
       SQL

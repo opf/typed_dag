@@ -9,8 +9,8 @@ module TypedDag::Sql::RelationAccess
     attr_accessor :relation, :helper
 
     delegate :table_name,
-             :ancestor_column,
-             :descendant_column,
+             :from_column,
+             :to_column,
              :type_columns,
              :type_select_list,
              to: :helper
@@ -19,12 +19,12 @@ module TypedDag::Sql::RelationAccess
       relation.id
     end
 
-    def ancestor_id_value
-      relation.send(ancestor_column)
+    def from_id_value
+      relation.send(from_column)
     end
 
-    def descendant_id_value
-      relation.send(descendant_column)
+    def to_id_value
+      relation.send(to_column)
     end
 
     def type_values
