@@ -939,6 +939,66 @@ RSpec.describe TypedDag do
             .to be_empty
         end
       end
+
+      description = <<-WITH
+
+        DAG before:
+          A
+          |
+          |
+          |
+          B
+          |
+          |
+          |
+          C
+
+
+        DAG after:
+          A      B
+                 |
+                 |
+                 |
+                 C
+
+        via:
+          assigning nil/empty to B's up method
+      WITH
+
+      context description do
+        let!(:a) { Message.create text: 'A' }
+        let!(:b) { message_with_up 'B', a }
+        let!(:c) { message_with_up 'C', b }
+
+        before do
+          if up_limit == 1
+            b.send("#{up}=", nil)
+          else
+            b.send("#{up}=", [])
+          end
+        end
+
+        it 'empties transitive down for A' do
+          binding.pry
+          expect(a.send(all_down))
+            .to be_empty
+        end
+
+        it 'transitive down for B is C' do
+          expect(b.send(all_down))
+            .to match_array [c]
+        end
+
+        it 'empties down for A' do
+          expect(a.send(down))
+            .to be_empty
+        end
+
+        it 'empties transitive up for B' do
+          expect(b.send(all_up))
+            .to be_empty
+        end
+      end
     end
 
     describe "#{all_down_depth} (all down of depth X)" do
