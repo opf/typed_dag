@@ -103,32 +103,34 @@ RSpec.describe TypedDag do
 
   shared_examples_for 'single typed dag' do |configuration|
     type = configuration[:type]
-    down = configuration[:down]
-    up = configuration[:up].is_a?(Hash) ? configuration[:up][:name] : configuration[:up]
-    up_limit = configuration[:up].is_a?(Hash) ? configuration[:up][:limit] : nil
-    # defining up and up_limit again here to capture the closure and by that avoid
+    to = configuration[:to]
+    from = configuration[:from].is_a?(Hash) ? configuration[:from][:name] : configuration[:from]
+    from_limit = configuration[:from].is_a?(Hash) ? configuration[:from][:limit] : nil
+    # defining from and from_limit again here to capture the closure and by that avoid
     # having to pass them around as params
-    let(:up) { configuration[:up].is_a?(Hash) ? configuration[:up][:name] : configuration[:up] }
-    let(:up_limit) { configuration[:up].is_a?(Hash) ? configuration[:up][:limit] : nil }
-    all_down = configuration[:all_down]
-    all_down_depth = (configuration[:all_down].to_s + '_of_depth').to_sym
-    all_up = configuration[:all_up]
-    all_up_depth = (configuration[:all_up].to_s + '_of_depth').to_sym
+    let(:from) do
+      configuration[:from].is_a?(Hash) ? configuration[:from][:name] : configuration[:from]
+    end
+    let(:from_limit) { configuration[:from].is_a?(Hash) ? configuration[:from][:limit] : nil }
+    all_to = configuration[:all_to]
+    all_to_depth = (configuration[:all_to].to_s + '_of_depth').to_sym
+    all_from = configuration[:all_from]
+    all_from_depth = (configuration[:all_from].to_s + '_of_depth').to_sym
 
-    def up_one_or_array(message)
-      if up_limit == 1
+    def from_one_or_array(message)
+      if from_limit == 1
         message
       else
         Array(message)
       end
     end
 
-    def message_with_up(text, parent)
-      if up_limit == 1
-        Message.create text: text, up => up_one_or_array(parent)
+    def message_with_from(text, parent)
+      if from_limit == 1
+        Message.create text: text, from => from_one_or_array(parent)
       else
         m = Message.create text: text
-        m.send("#{up}=", up_one_or_array(parent))
+        m.send("#{from}=", from_one_or_array(parent))
         m
       end
     end
@@ -170,11 +172,11 @@ RSpec.describe TypedDag do
       WITH
       context description do
         let!(:a) { Message.create text: 'A' }
-        let!(:b) { message_with_up 'B', a }
-        let!(:c) { message_with_up 'C', b }
-        let!(:d) { message_with_up 'D', b }
-        let!(:e) { message_with_up 'E', d }
-        let!(:f) { message_with_up 'F', a }
+        let!(:b) { message_with_from 'B', a }
+        let!(:c) { message_with_from 'C', b }
+        let!(:d) { message_with_from 'D', b }
+        let!(:e) { message_with_from 'E', d }
+        let!(:f) { message_with_from 'F', a }
 
         it 'is C, E, F' do
           expect(Message.send(method_name))
@@ -206,11 +208,11 @@ RSpec.describe TypedDag do
       WITH
       context description do
         let!(:a) { Message.create text: 'A' }
-        let!(:b) { message_with_up 'B', a }
-        let!(:c) { message_with_up 'C', b }
-        let!(:d) { message_with_up 'D', b }
-        let!(:e) { message_with_up 'E', d }
-        let!(:f) { message_with_up 'F', a }
+        let!(:b) { message_with_from 'B', a }
+        let!(:c) { message_with_from 'C', b }
+        let!(:d) { message_with_from 'D', b }
+        let!(:e) { message_with_from 'E', d }
+        let!(:f) { message_with_from 'F', a }
 
         it 'for A is C, E, F' do
           expect(a.send(method_name))
@@ -219,7 +221,7 @@ RSpec.describe TypedDag do
       end
     end
 
-    describe "##{down} (directly down)" do
+    describe "##{to} (directly to)" do
       description = <<-WITH
 
         DAG:
@@ -229,7 +231,7 @@ RSpec.describe TypedDag do
         let!(:a) { Message.new }
 
         it 'is empty' do
-          expect(a.send(down))
+          expect(a.send(to))
             .to be_empty
         end
       end
@@ -245,10 +247,10 @@ RSpec.describe TypedDag do
       WITH
       context description do
         let!(:a) { Message.create text: 'A' }
-        let!(:b) { message_with_up('B', a) }
+        let!(:b) { message_with_from('B', a) }
 
         it 'includes B' do
-          expect(a.send(down))
+          expect(a.send(to))
             .to match_array([b])
         end
       end
@@ -268,17 +270,17 @@ RSpec.describe TypedDag do
       WITH
       context description do
         let!(:a) { Message.create text: 'A' }
-        let!(:b) { message_with_up 'B', a }
-        let!(:c) { message_with_up 'C', b }
+        let!(:b) { message_with_from 'B', a }
+        let!(:c) { message_with_from 'C', b }
 
         it 'includes B' do
-          expect(a.send(down))
+          expect(a.send(to))
             .to match_array([b])
         end
       end
     end
 
-    describe "##{all_down} (transitive down)" do
+    describe "##{all_to} (transitive to)" do
       description = <<-WITH
 
         DAG:
@@ -287,7 +289,7 @@ RSpec.describe TypedDag do
 
       context description do
         it 'is empty' do
-          expect(message.send(all_down))
+          expect(message.send(all_to))
             .to be_empty
         end
       end
@@ -303,10 +305,10 @@ RSpec.describe TypedDag do
       WITH
       context description do
         let!(:a) { Message.create text: 'A' }
-        let!(:b) { message_with_up 'B', a }
+        let!(:b) { message_with_from 'B', a }
 
         it 'includes B' do
-          expect(a.send(all_down))
+          expect(a.send(all_to))
             .to match_array([b])
         end
       end
@@ -326,16 +328,16 @@ RSpec.describe TypedDag do
       WITH
       context description do
         let!(:a) { Message.create text: 'A' }
-        let!(:b) { message_with_up 'B', a }
-        let!(:c) { message_with_up 'C', b }
+        let!(:b) { message_with_from 'B', a }
+        let!(:c) { message_with_from 'C', b }
 
         it 'includes B and C' do
-          expect(a.send(all_down))
+          expect(a.send(all_to))
             .to match_array([b, c])
         end
       end
 
-      if !up_limit || up_limit > 1
+      if !from_limit || from_limit > 1
         description = <<-'WITH'
 
           DAG:
@@ -351,19 +353,19 @@ RSpec.describe TypedDag do
         WITH
         context description do
           let!(:a) { Message.create text: 'A' }
-          let!(:b) { message_with_up 'B', a }
-          let!(:c) { message_with_up 'C', a }
-          let!(:d) { message_with_up 'D', [b, c] }
+          let!(:b) { message_with_from 'B', a }
+          let!(:c) { message_with_from 'C', a }
+          let!(:d) { message_with_from 'D', [b, c] }
 
           it 'is B, C and D for A' do
-            expect(d.send(all_up))
+            expect(d.send(all_from))
               .to match_array([b, c, a])
           end
         end
       end
     end
 
-    describe "##{up} (direct up)" do
+    describe "##{from} (direct from)" do
       description = <<-WITH
 
         DAG:
@@ -373,14 +375,14 @@ RSpec.describe TypedDag do
       context description do
         let!(:a) { Message.create text: 'A' }
 
-        if up_limit == 1
+        if from_limit == 1
           it 'is nil' do
-            expect(a.send(up))
+            expect(a.send(from))
               .to be_nil
           end
         else
           it 'is empty' do
-            expect(a.send(up))
+            expect(a.send(from))
               .to be_empty
           end
         end
@@ -397,16 +399,16 @@ RSpec.describe TypedDag do
       WITH
       context description do
         let!(:b) { Message.create text: 'B' }
-        let!(:a) { message_with_up 'A', b }
+        let!(:a) { message_with_from 'A', b }
 
-        if up_limit && up_limit == 1
+        if from_limit && from_limit == 1
           it 'is B' do
-            expect(a.send(up))
+            expect(a.send(from))
               .to eql b
           end
         else
           it 'includes B' do
-            expect(a.send(up))
+            expect(a.send(from))
               .to match_array([b])
           end
         end
@@ -427,24 +429,24 @@ RSpec.describe TypedDag do
       WITH
       context description do
         let!(:c) { Message.create text: 'C' }
-        let!(:b) { message_with_up 'B', c }
-        let!(:a) { message_with_up 'A', b }
+        let!(:b) { message_with_from 'B', c }
+        let!(:a) { message_with_from 'A', b }
 
-        if up_limit == 1
+        if from_limit == 1
           it 'is B' do
-            expect(a.send(up))
+            expect(a.send(from))
               .to eql b
           end
         else
           it 'includes B' do
-            expect(a.send(up))
+            expect(a.send(from))
               .to match_array([b])
           end
         end
       end
     end
 
-    describe "##{all_up} (transitive up)" do
+    describe "##{all_from} (transitive from)" do
       description = <<-WITH
 
         DAG:
@@ -454,7 +456,7 @@ RSpec.describe TypedDag do
         let!(:a) { Message.create text: 'A' }
 
         it 'is empty' do
-          expect(a.send(all_up))
+          expect(a.send(all_from))
             .to be_empty
         end
       end
@@ -474,16 +476,16 @@ RSpec.describe TypedDag do
       WITH
       context description do
         let!(:c) { Message.create text: 'C' }
-        let!(:b) { message_with_up 'B', c }
-        let!(:a) { message_with_up 'A', b }
+        let!(:b) { message_with_from 'B', c }
+        let!(:a) { message_with_from 'A', b }
 
         it 'includes B and C' do
-          expect(a.send(all_up))
+          expect(a.send(all_from))
             .to match_array([b, c])
         end
       end
 
-      if !up_limit || up_limit > 1
+      if !from_limit || from_limit > 1
         description = <<-'WITH'
 
           DAG:
@@ -499,19 +501,19 @@ RSpec.describe TypedDag do
         WITH
         context description do
           let!(:a) { Message.create text: 'A' }
-          let!(:b) { message_with_up 'B', a }
-          let!(:c) { message_with_up 'C', a }
-          let!(:d) { message_with_up 'D', [b, c] }
+          let!(:b) { message_with_from 'B', a }
+          let!(:c) { message_with_from 'C', a }
+          let!(:d) { message_with_from 'D', [b, c] }
 
           it 'is B, C and A for D' do
-            expect(d.send(all_up))
+            expect(d.send(all_from))
               .to match_array([b, c, a])
           end
         end
       end
     end
 
-    describe "#self_and_#{all_up} (self and transitive up)" do
+    describe "#self_and_#{all_from} (self and transitive from)" do
       description = <<-WITH
 
         DAG:
@@ -521,7 +523,7 @@ RSpec.describe TypedDag do
         let!(:a) { Message.create text: 'A' }
 
         it 'is A' do
-          expect(a.send(:"self_and_#{all_up}"))
+          expect(a.send(:"self_and_#{all_from}"))
             .to match_array [a]
         end
       end
@@ -541,17 +543,17 @@ RSpec.describe TypedDag do
       WITH
       context description do
         let!(:c) { Message.create text: 'C' }
-        let!(:b) { message_with_up 'B', c }
-        let!(:a) { message_with_up 'A', b }
+        let!(:b) { message_with_from 'B', c }
+        let!(:a) { message_with_from 'A', b }
 
         it 'for A is A, B and C' do
-          expect(a.send(:"self_and_#{all_up}"))
+          expect(a.send(:"self_and_#{all_from}"))
             .to match_array([a, b, c])
         end
       end
     end
 
-    describe "#self_and_#{all_down} (self and transitive down)" do
+    describe "#self_and_#{all_to} (self and transitive to)" do
       description = <<-WITH
 
         DAG:
@@ -561,7 +563,7 @@ RSpec.describe TypedDag do
         let!(:a) { Message.create text: 'A' }
 
         it 'is A' do
-          expect(a.send(:"self_and_#{all_down}"))
+          expect(a.send(:"self_and_#{all_to}"))
             .to match_array [a]
         end
       end
@@ -581,17 +583,17 @@ RSpec.describe TypedDag do
       WITH
       context description do
         let!(:c) { Message.create text: 'C' }
-        let!(:b) { message_with_up 'B', c }
-        let!(:a) { message_with_up 'A', b }
+        let!(:b) { message_with_from 'B', c }
+        let!(:a) { message_with_from 'A', b }
 
         it 'for C is A, B and C' do
-          expect(c.send(:"self_and_#{all_down}"))
+          expect(c.send(:"self_and_#{all_to}"))
             .to match_array([a, b, c])
         end
       end
     end
 
-    describe "##{up}= (directly up)" do
+    describe "##{from}= (directly from)" do
       description = <<-WITH
 
         DAG before:
@@ -612,17 +614,17 @@ RSpec.describe TypedDag do
         let!(:b) { Message.create text: 'B' }
 
         before do
-          a.send("#{up}=", up_one_or_array(b))
+          a.send("#{from}=", from_one_or_array(b))
         end
 
-        if up_limit == 1
+        if from_limit == 1
           it 'is B' do
-            expect(a.send(up))
+            expect(a.send(from))
               .to eql b
           end
         else
           it 'includes B' do
-            expect(a.send(up))
+            expect(a.send(from))
               .to match_array([b])
           end
         end
@@ -648,17 +650,17 @@ RSpec.describe TypedDag do
         let!(:b) { Message.create text: 'B' }
 
         before do
-          a.attributes = { up => up_one_or_array(b) }
+          a.attributes = { from => from_one_or_array(b) }
         end
 
-        if up_limit == 1
+        if from_limit == 1
           it 'is B' do
-            expect(a.send(up))
+            expect(a.send(from))
               .to eql b
           end
         else
           it 'includes B' do
-            expect(a.send(up))
+            expect(a.send(from))
               .to match_array([b])
           end
         end
@@ -682,21 +684,21 @@ RSpec.describe TypedDag do
       context description do
         let!(:b) { Message.create text: 'B' }
         let(:a) do
-          Message.create up => up_one_or_array(b)
+          Message.create from => from_one_or_array(b)
         end
 
         before do
           a
         end
 
-        if up_limit == 1
+        if from_limit == 1
           it 'is B' do
-            expect(a.send(up))
+            expect(a.send(from))
               .to eql b
           end
         else
           it 'includes B' do
-            expect(a.send(up))
+            expect(a.send(from))
               .to match_array([b])
           end
         end
@@ -726,12 +728,12 @@ RSpec.describe TypedDag do
         let!(:c) { Message.create text: 'C' }
 
         before do
-          b.send("#{up}=", up_one_or_array(c))
-          a.send("#{up}=", up_one_or_array(b))
+          b.send("#{from}=", from_one_or_array(c))
+          a.send("#{from}=", from_one_or_array(b))
         end
 
         it 'builds the complete hierarchy' do
-          expect(a.send(all_up))
+          expect(a.send(all_from))
             .to match_array([b, c])
         end
       end
@@ -760,12 +762,12 @@ RSpec.describe TypedDag do
         let!(:c) { Message.create text: 'C' }
 
         before do
-          b.send("#{up}=", up_one_or_array(a))
-          c.send("#{up}=", up_one_or_array(b))
+          b.send("#{from}=", from_one_or_array(a))
+          c.send("#{from}=", from_one_or_array(b))
         end
 
         it 'builds the complete hierarchy' do
-          expect(a.send(all_down))
+          expect(a.send(all_to))
             .to match_array([b, c])
         end
       end
@@ -795,13 +797,13 @@ RSpec.describe TypedDag do
         let!(:d) { Message.create text: 'D' }
 
         before do
-          b.send("#{up}=", up_one_or_array(a))
-          c.send("#{up}=", up_one_or_array(b))
-          d.send("#{up}=", up_one_or_array(b))
+          b.send("#{from}=", from_one_or_array(a))
+          c.send("#{from}=", from_one_or_array(b))
+          d.send("#{from}=", from_one_or_array(b))
         end
 
         it 'builds the complete hierarchy' do
-          expect(a.send(all_down))
+          expect(a.send(all_to))
             .to match_array([b, c, d])
         end
       end
@@ -832,41 +834,41 @@ RSpec.describe TypedDag do
       WITH
       context description do
         let!(:a) { Message.create text: 'A' }
-        let!(:b) { message_with_up 'B', a }
+        let!(:b) { message_with_from 'B', a }
         let!(:c) { Message.create text: 'C' }
-        let!(:d) { message_with_up 'D', c }
+        let!(:d) { message_with_from 'D', c }
 
         before do
-          c.send("#{up}=", up_one_or_array(b))
+          c.send("#{from}=", from_one_or_array(b))
         end
 
-        it 'builds the complete transitive down for A' do
-          expect(a.send(all_down))
+        it 'builds the complete transitive to for A' do
+          expect(a.send(all_to))
             .to match_array([b, c, d])
         end
 
-        it 'build the correct second generation down for A' do
-          expect(a.send(all_down_depth, 2))
+        it 'build the correct second generation to for A' do
+          expect(a.send(all_to_depth, 2))
             .to match_array([c])
         end
 
-        it 'build the correct third generation down for A' do
-          expect(a.send(all_down_depth, 3))
+        it 'build the correct third generation to for A' do
+          expect(a.send(all_to_depth, 3))
             .to match_array([d])
         end
 
-        it 'builds the complete transitive down for B' do
-          expect(b.send(all_down))
+        it 'builds the complete transitive to for B' do
+          expect(b.send(all_to))
             .to match_array([c, d])
         end
 
-        it 'builds the complete transitive up for D' do
-          expect(d.send(all_up))
+        it 'builds the complete transitive from for D' do
+          expect(d.send(all_from))
             .to match_array([c, b, a])
         end
 
-        it 'builds the complete transitive up for C' do
-          expect(c.send(all_up))
+        it 'builds the complete transitive from for C' do
+          expect(c.send(all_from))
             .to match_array([b, a])
         end
       end
@@ -897,51 +899,110 @@ RSpec.describe TypedDag do
           B      D
 
         via:
-          assigning nil/empty to C's up method
+          assigning nil/empty to C's from method
       WITH
 
       context description do
         let!(:a) { Message.create text: 'A' }
-        let!(:b) { message_with_up 'B', a }
-        let!(:c) { message_with_up 'C', b }
-        let!(:d) { message_with_up 'D', c }
+        let!(:b) { message_with_from 'B', a }
+        let!(:c) { message_with_from 'C', b }
+        let!(:d) { message_with_from 'D', c }
 
         before do
-          if up_limit == 1
-            c.send("#{up}=", nil)
+          if from_limit == 1
+            c.send("#{from}=", nil)
           else
-            c.send("#{up}=", [])
+            c.send("#{from}=", [])
           end
         end
 
-        it 'empties transitive down for A except B' do
-          expect(a.send(all_down))
+        it 'empties transitive to for A except B' do
+          expect(a.send(all_to))
             .to match_array [b]
         end
 
-        it 'empties transitive down for B' do
-          expect(b.send(all_down))
+        it 'empties transitive to for B' do
+          expect(b.send(all_to))
             .to be_empty
         end
 
-        it 'empties down for B' do
-          expect(b.send(down))
+        it 'empties to for B' do
+          expect(b.send(to))
             .to be_empty
         end
 
-        it 'empties transitive up for D except C' do
-          expect(d.send(all_up))
+        it 'empties transitive from for D except C' do
+          expect(d.send(all_from))
             .to match_array([c])
         end
 
-        it 'empties transitive up for C' do
-          expect(c.send(all_up))
+        it 'empties transitive from for C' do
+          expect(c.send(all_from))
+            .to be_empty
+        end
+      end
+
+      description = <<-WITH
+
+        DAG before:
+          A
+          |
+          |
+          |
+          B
+          |
+          |
+          |
+          C
+
+
+        DAG after:
+          A      B
+                 |
+                 |
+                 |
+                 C
+
+        via:
+          assigning nil/empty to B's from method
+      WITH
+
+      context description do
+        let!(:a) { Message.create text: 'A' }
+        let!(:b) { message_with_from 'B', a }
+        let!(:c) { message_with_from 'C', b }
+
+        before do
+          if from_limit == 1
+            b.send("#{from}=", nil)
+          else
+            b.send("#{from}=", [])
+          end
+        end
+
+        it 'empties transitive to for A' do
+          expect(a.send(all_to))
+            .to be_empty
+        end
+
+        it 'transitive to for B is C' do
+          expect(b.send(all_to))
+            .to match_array [c]
+        end
+
+        it 'empties to for A' do
+          expect(a.send(to))
+            .to be_empty
+        end
+
+        it 'empties transitive from for B' do
+          expect(b.send(all_from))
             .to be_empty
         end
       end
     end
 
-    describe "#{all_down_depth} (all down of depth X)" do
+    describe "#{all_to_depth} (all to of depth X)" do
       description = <<-'WITH'
 
         DAG before:
@@ -957,23 +1018,23 @@ RSpec.describe TypedDag do
       WITH
       context description do
         let!(:a) { Message.create text: 'A' }
-        let!(:b) { message_with_up 'B', a }
-        let!(:c) { message_with_up 'C', b }
-        let!(:d) { message_with_up 'D', b }
+        let!(:b) { message_with_from 'B', a }
+        let!(:c) { message_with_from 'C', b }
+        let!(:d) { message_with_from 'D', b }
 
         it 'is B for A with depth 1' do
-          expect(a.send(all_down_depth, 1))
+          expect(a.send(all_to_depth, 1))
             .to match_array [b]
         end
 
         it 'is C and D for A with depth 2' do
-          expect(a.send(all_down_depth, 2))
+          expect(a.send(all_to_depth, 2))
             .to match_array [c, d]
         end
       end
     end
 
-    describe "#{all_up_depth} (all up of depth X)" do
+    describe "#{all_from_depth} (all from of depth X)" do
       description = <<-'WITH'
 
         DAG before:
@@ -989,21 +1050,21 @@ RSpec.describe TypedDag do
       WITH
       context description do
         let!(:a) { Message.create text: 'A' }
-        let!(:b) { message_with_up 'B', a }
-        let!(:c) { message_with_up 'C', b }
+        let!(:b) { message_with_from 'B', a }
+        let!(:c) { message_with_from 'C', b }
 
         it 'is B for C with depth 1' do
-          expect(c.send(all_up_depth, 1))
+          expect(c.send(all_from_depth, 1))
             .to match_array [b]
         end
 
         it 'is C and D for A with depth 2' do
-          expect(c.send(all_up_depth, 2))
+          expect(c.send(all_from_depth, 2))
             .to match_array [a]
         end
       end
 
-      if !up_limit || up_limit > 1
+      if !from_limit || from_limit > 1
         description = <<-'WITH'
 
           DAG before:
@@ -1022,18 +1083,18 @@ RSpec.describe TypedDag do
           let!(:b) { Message.create text: 'B' }
           let!(:c) do
             message = Message.create text: 'C'
-            message.send("#{up}=", [a, b])
+            message.send("#{from}=", [a, b])
             message
           end
-          let!(:d) { message_with_up 'd', c }
+          let!(:d) { message_with_from 'd', c }
 
           it 'is C for D with depth 1' do
-            expect(d.send(all_up_depth, 1))
+            expect(d.send(all_from_depth, 1))
               .to match_array [c]
           end
 
           it 'is A and B for D with depth 2' do
-            expect(d.send(all_up_depth, 2))
+            expect(d.send(all_from_depth, 2))
               .to match_array [a, b]
           end
         end
@@ -1072,43 +1133,43 @@ RSpec.describe TypedDag do
 
       context description do
         let!(:a) { Message.create text: 'A' }
-        let!(:b) { message_with_up 'B', a }
-        let!(:c) { message_with_up 'C', b }
-        let!(:d) { message_with_up 'D', c }
+        let!(:b) { message_with_from 'B', a }
+        let!(:c) { message_with_from 'C', b }
+        let!(:d) { message_with_from 'D', c }
 
         before do
           c.destroy
         end
 
-        it 'empties transitive down for A except B' do
-          expect(a.send(all_down))
+        it 'empties transitive to for A except B' do
+          expect(a.send(all_to))
             .to match_array [b]
         end
 
-        it 'empties transitive down for B' do
-          expect(b.send(all_down))
+        it 'empties transitive to for B' do
+          expect(b.send(all_to))
             .to be_empty
         end
 
-        it 'empties down for B' do
-          expect(b.send(down))
+        it 'empties to for B' do
+          expect(b.send(to))
             .to be_empty
         end
 
-        it 'empties transitive up for D' do
-          expect(d.send(all_up))
+        it 'empties transitive from for D' do
+          expect(d.send(all_from))
             .to be_empty
         end
 
-        if up_limit == 1
-          it "assigns nil to D's up" do
+        if from_limit == 1
+          it "assigns nil to D's from" do
             d.reload
-            expect(d.send(up))
+            expect(d.send(from))
               .to be_nil
           end
         else
-          it 'empties up for D' do
-            expect(d.send(all_up))
+          it 'empties from for D' do
+            expect(d.send(all_from))
               .to be_empty
           end
         end
@@ -1116,7 +1177,7 @@ RSpec.describe TypedDag do
     end
 
     describe '#destroy on a relation' do
-      if !up_limit || up_limit > 1
+      if !from_limit || from_limit > 1
         description = <<-'WITH'
 
           DAG before:
@@ -1163,49 +1224,49 @@ RSpec.describe TypedDag do
         WITH
         context description do
           let!(:a) { Message.create text: 'A' }
-          let!(:b) { message_with_up 'B', a }
-          let!(:d) { message_with_up 'D', a }
-          let!(:c) { message_with_up 'C', [a, b, d] }
-          let!(:e) { message_with_up 'E', b }
-          let!(:f) { message_with_up 'F', [e, c] }
-          let!(:g) { message_with_up 'G', f }
+          let!(:b) { message_with_from 'B', a }
+          let!(:d) { message_with_from 'D', a }
+          let!(:c) { message_with_from 'C', [a, b, d] }
+          let!(:e) { message_with_from 'E', b }
+          let!(:f) { message_with_from 'F', [e, c] }
+          let!(:g) { message_with_from 'G', f }
 
           before do
-            Relation.where(ancestor: c, descendant: f).destroy_all
+            Relation.where(from: c, to: f).destroy_all
           end
 
-          it "#{all_down} (transitive down) of A is B, C, D, E, F, G" do
-            expect(a.send(all_down))
+          it "#{all_to} (transitive to) of A is B, C, D, E, F, G" do
+            expect(a.send(all_to))
               .to match_array([b, c, d, e, f, g])
           end
 
-          it "#{all_down} (transitive down) of B is C, E, F, G" do
-            expect(b.send(all_down))
+          it "#{all_to} (transitive to) of B is C, E, F, G" do
+            expect(b.send(all_to))
               .to match_array([c, e, f, g])
           end
 
-          it "#{all_down} (transitive down) of C is empty" do
-            expect(c.send(all_down))
+          it "#{all_to} (transitive to) of C is empty" do
+            expect(c.send(all_to))
               .to be_empty
           end
 
-          it "#{all_down} (transitive down) of D is C" do
-            expect(d.send(all_down))
+          it "#{all_to} (transitive to) of D is C" do
+            expect(d.send(all_to))
               .to match_array([c])
           end
 
-          it "#{all_up} (transitive up) of F is E, B, A" do
-            expect(f.send(all_up))
+          it "#{all_from} (transitive from) of F is E, B, A" do
+            expect(f.send(all_from))
               .to match_array([e, b, a])
           end
 
-          it "#{all_down_depth} (transitive down of depth) of A with depth 4 is G" do
-            expect(a.send(all_down_depth, 4))
+          it "#{all_to_depth} (transitive to of depth) of A with depth 4 is G" do
+            expect(a.send(all_to_depth, 4))
               .to match_array([g])
           end
 
-          it "#{all_down_depth} (transitive down of depth) of A with depth 3 is F" do
-            expect(a.send(all_down_depth, 3))
+          it "#{all_to_depth} (transitive to of depth) of A with depth 3 is F" do
+            expect(a.send(all_to_depth, 3))
               .to match_array([f])
           end
         end
@@ -1216,19 +1277,19 @@ RSpec.describe TypedDag do
   context 'hierarchy relations' do
     it_behaves_like 'single typed dag',
                     type: :hierarchy,
-                    down: :children,
-                    up: { name: :parent, limit: 1 },
-                    all_down: :descendants,
-                    all_up: :ancestors
+                    to: :children,
+                    from: { name: :parent, limit: 1 },
+                    all_to: :descendants,
+                    all_from: :ancestors
   end
 
   context 'invalidate relations' do
     it_behaves_like 'single typed dag',
                     type: :invalidate,
-                    down: :invalidates,
-                    up: :invalidated_by,
-                    all_down: :all_invalidates,
-                    all_up: :all_invalidated_by
+                    to: :invalidates,
+                    from: :invalidated_by,
+                    all_to: :all_invalidates,
+                    all_from: :all_invalidated_by
   end
 
   context 'relations of various types' do
@@ -1238,7 +1299,7 @@ RSpec.describe TypedDag do
       message
     end
 
-    describe 'directly down' do
+    describe 'directly to' do
       description = <<-'WITH'
 
         DAG:
@@ -1283,7 +1344,7 @@ RSpec.describe TypedDag do
       end
     end
 
-    describe 'transitive down' do
+    describe 'transitive to' do
       description = <<-'WITH'
 
         DAG:
@@ -1318,7 +1379,7 @@ RSpec.describe TypedDag do
       end
     end
 
-    describe 'transitive up' do
+    describe 'transitive from' do
       description = <<-'WITH'
 
         DAG:
@@ -1653,8 +1714,8 @@ RSpec.describe TypedDag do
         let!(:c) { Message.create text: 'C', parent: b }
         let!(:invalid_relation) do
           Relation
-            .new(ancestor: c,
-                 descendant: a,
+            .new(from: c,
+                 to: a,
                  invalidate: 1)
             .save(validate: false)
         end
@@ -1695,14 +1756,14 @@ RSpec.describe TypedDag do
         let!(:c) { Message.create text: 'C', parent: b }
         let!(:invalid_relation) do
           Relation
-            .new(ancestor: c,
-                 descendant: a,
+            .new(from: c,
+                 to: a,
                  invalidate: 1)
             .save(validate: false)
 
           Relation
-            .new(ancestor: c,
-                 descendant: a,
+            .new(from: c,
+                 to: a,
                  invalidate: 1)
             .save(validate: false)
         end

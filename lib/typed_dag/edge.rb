@@ -47,12 +47,12 @@ module TypedDag::Edge
       TypedDag::Sql::TruncateClosure.sql(self)
     end
 
-    def ancestor_id_value
-      send(_dag_options.ancestor_column)
+    def from_id_value
+      send(_dag_options.from_column)
     end
 
-    def descendant_id_value
-      send(_dag_options.descendant_column)
+    def to_id_value
+      send(_dag_options.to_column)
     end
   end
 
@@ -63,18 +63,18 @@ module TypedDag::Edge
       after_create :add_closures
       after_destroy :truncate_closures
 
-      validates_uniqueness_of :ancestor,
-                              scope: [:descendant],
+      validates_uniqueness_of :from,
+                              scope: [:to],
                               conditions: -> {
                                 where.not("#{_dag_options.type_columns.join(' + ')} > 1")
                               }
 
-      belongs_to :ancestor,
+      belongs_to :from,
                  class_name: _dag_options.node_class_name,
-                 foreign_key: _dag_options.ancestor_column
-      belongs_to :descendant,
+                 foreign_key: _dag_options.from_column
+      belongs_to :to,
                  class_name: _dag_options.node_class_name,
-                 foreign_key: _dag_options.descendant_column
+                 foreign_key: _dag_options.to_column
 
       validate :no_circular_dependency
 
@@ -95,16 +95,16 @@ module TypedDag::Edge
         where(requirements)
       end
 
-      def self.of_ancestor_and_descendant(ancestor, descendant)
-        where(_dag_options.ancestor_column => ancestor,
-              _dag_options.descendant_column => descendant)
+      def self.of_from_and_to(from, to)
+        where(_dag_options.from_column => from,
+              _dag_options.to_column => to)
       end
 
       private
 
       def no_circular_dependency
-        if self.class.of_ancestor_and_descendant(send(_dag_options.descendant_column),
-                                                 send(_dag_options.ancestor_column)).exists?
+        if self.class.of_from_and_to(send(_dag_options.to_column),
+                                     send(_dag_options.from_column)).exists?
           errors.add :base, :'typed_dag.circular_dependency'
         end
       end

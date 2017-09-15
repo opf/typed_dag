@@ -3,11 +3,11 @@ require 'spec_helper'
 RSpec.describe 'Edge' do
   # using Relation, Message as the concrete classes
 
-  let(:ancestor) { Message.new text: 'ancestor' }
-  let(:descendant) { Message.new text: 'descendant' }
+  let(:from) { Message.new text: 'from' }
+  let(:to) { Message.new text: 'to' }
   let(:relation) do
-    Relation.new ancestor: ancestor,
-                 descendant: descendant,
+    Relation.new from: from,
+                 to: to,
                  hierarchy: 1
   end
 
@@ -17,8 +17,8 @@ RSpec.describe 'Edge' do
         .to be_valid
     end
 
-    context 'without an ancestor' do
-      let(:ancestor) { nil }
+    context 'without an from' do
+      let(:from) { nil }
 
       it 'is invalid' do
         expect(relation)
@@ -28,13 +28,13 @@ RSpec.describe 'Edge' do
       it 'states the error' do
         relation.valid?
 
-        expect(relation.errors.details[:ancestor])
+        expect(relation.errors.details[:from])
           .to match_array([error: :blank])
       end
     end
 
-    context 'without a descendant' do
-      let(:descendant) { nil }
+    context 'without a to' do
+      let(:to) { nil }
 
       it 'is invalid' do
         expect(relation)
@@ -44,15 +44,15 @@ RSpec.describe 'Edge' do
       it 'states the error' do
         relation.valid?
 
-        expect(relation.errors.details[:descendant])
+        expect(relation.errors.details[:to])
           .to match_array([error: :blank])
       end
     end
 
     context 'with a relation already in place between the two nodes' do
       let!(:same_relation) do
-        Relation.create ancestor: ancestor,
-                        descendant: descendant
+        Relation.create from: from,
+                        to: to
       end
 
       it 'is invalid' do
@@ -63,15 +63,15 @@ RSpec.describe 'Edge' do
       it 'notes the uniqueness constraint' do
         relation.valid?
 
-        expect(relation.errors.details[:ancestor].first[:error])
+        expect(relation.errors.details[:from].first[:error])
           .to eql :taken
       end
     end
 
     context 'with a relation already in place between the two nodes having a different type' do
       let!(:same_relation) do
-        Relation.create ancestor: ancestor,
-                        descendant: descendant,
+        Relation.create from: from,
+                        to: to,
                         invalidate: 1
       end
 
@@ -83,15 +83,15 @@ RSpec.describe 'Edge' do
       it 'notes the uniqueness constraint' do
         relation.valid?
 
-        expect(relation.errors.details[:ancestor].first[:error])
+        expect(relation.errors.details[:from].first[:error])
           .to eql :taken
       end
     end
 
     context 'with a closure relation already in place between the two nodes (same type)' do
       let!(:closure_relation) do
-        Relation.create ancestor: ancestor,
-                        descendant: descendant,
+        Relation.create from: from,
+                        to: to,
                         invalidate: 2
       end
 
@@ -103,8 +103,8 @@ RSpec.describe 'Edge' do
 
     context 'with a closure relation already in place between the two nodes (mixed type)' do
       let!(:closure_relation) do
-        Relation.create ancestor: ancestor,
-                        descendant: descendant,
+        Relation.create from: from,
+                        to: to,
                         invalidate: 1,
                         hierarchy: 1
       end
@@ -117,8 +117,8 @@ RSpec.describe 'Edge' do
 
     context 'with a relation in place but in the other direction' do
       let(:inverse_relation) do
-        Relation.create descendant: ancestor,
-                        ancestor: descendant,
+        Relation.create to: from,
+                        from: to,
                         hierarchy: 1
       end
 
@@ -137,17 +137,17 @@ RSpec.describe 'Edge' do
       let(:b) { Message.create text: 'B' }
       let(:c) { Message.create text: 'C' }
       let!(:relationAB) do
-        Relation.create ancestor: a,
-                        descendant: b,
+        Relation.create from: a,
+                        to: b,
                         hierarchy: 1
       end
       let!(:relationBC) do
-        Relation.create ancestor: b,
-                        descendant: c,
+        Relation.create from: b,
+                        to: c,
                         hierarchy: 1
       end
-      let(:ancestor) { c }
-      let(:descendant) { b }
+      let(:from) { c }
+      let(:to) { b }
 
       it 'is invalid' do
         expect(relation)
@@ -160,17 +160,17 @@ RSpec.describe 'Edge' do
       let(:b) { Message.create text: 'B' }
       let(:c) { Message.create text: 'C' }
       let!(:relationAB) do
-        Relation.create ancestor: a,
-                        descendant: b,
+        Relation.create from: a,
+                        to: b,
                         invalidate: 1
       end
       let!(:relationBC) do
-        Relation.create ancestor: b,
-                        descendant: c,
+        Relation.create from: b,
+                        to: c,
                         hierarchy: 1
       end
-      let(:ancestor) { c }
-      let(:descendant) { b }
+      let(:from) { c }
+      let(:to) { b }
 
       it 'is invalid' do
         expect(relation)
