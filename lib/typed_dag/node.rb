@@ -60,13 +60,13 @@ module TypedDag::Node
                   through: :"#{config[:up][:name]}_relation",
                   source: :ancestor
         else
-          has_many :"#{config[:up]}_relation",
+          has_many :"#{config[:up]}_relations",
                    dag_relations_association_lambda(key, 1),
                    class_name: _dag_options.edge_class_name,
                    foreign_key: _dag_options.descendant_column
 
           has_many config[:up],
-                   through: :"#{config[:up]}_relation",
+                   through: :"#{config[:up]}_relations",
                    source: :ancestor,
                    dependent: :destroy
         end
