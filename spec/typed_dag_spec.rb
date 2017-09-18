@@ -1000,6 +1000,40 @@ RSpec.describe TypedDag do
             .to be_empty
         end
       end
+
+      description = <<-WITH
+
+        DAG before (unpersisted):
+          B
+          |
+          |
+          |
+          A
+
+        assigning nil afterwards
+      WITH
+      context description do
+        let!(:a) { Message.new text: 'A' }
+        let!(:b) { Message.create text: 'B' }
+
+        before do
+          a.send("#{from}=", from_one_or_array(b))
+
+          a.send("#{from}=", from_one_or_array(nil))
+        end
+
+        if from_limit == 1
+          it 'is nil' do
+            expect(a.send(from))
+              .to be_nil
+          end
+        else
+          it 'is empty' do
+            expect(a.send(from))
+              .to be_empty
+          end
+        end
+      end
     end
 
     describe "#{all_to_depth} (all to of depth X)" do
