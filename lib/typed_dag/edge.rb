@@ -34,7 +34,9 @@ module TypedDag::Edge
     end
 
     def truncate_closures
-      return unless direct_edge?
+      # The destroyed callback is also run for unpersisted records.
+      # However, #persisted? will be false for destroyed records.
+      return unless direct_edge? && !new_record?
 
       self.class.connection.execute truncate_dag_closure_sql
     end
