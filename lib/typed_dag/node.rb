@@ -128,6 +128,14 @@ module TypedDag::Node
           send(config[:all_to])
             .where(id: self.class.send("#{key}_leaves"))
         end
+
+        define_method :"#{key}_root?" do
+          if config[:from].is_a?(Hash) && config[:from][:limit] == 1
+            send(config[:from][:name]).nil?
+          else
+            send(config[:from]).empty?
+          end
+        end
       end
     end
   end
