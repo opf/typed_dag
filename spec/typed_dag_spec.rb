@@ -135,6 +135,50 @@ RSpec.describe TypedDag do
       end
     end
 
+    describe ".#{type}_root?" do
+      let(:method_name) { "#{type}_root?" }
+
+      description = <<-'WITH'
+
+        DAG:
+                A
+
+      WITH
+      context description do
+        let!(:a) { Message.create text: 'A' }
+
+        it 'is true for A' do
+          expect(a.send(method_name))
+            .to be_truthy
+        end
+      end
+
+      description = <<-'WITH'
+
+        DAG:
+                A
+                |
+                |
+                +
+                B
+
+      WITH
+      context description do
+        let!(:a) { Message.create text: 'A' }
+        let!(:b) { message_with_from 'B', a }
+
+        it 'is true for A' do
+          expect(a.send(method_name))
+            .to be_truthy
+        end
+
+        it 'is false for B' do
+          expect(b.send(method_name))
+            .to be_falsy
+        end
+      end
+    end
+
     describe ".#{type}_leaves" do
       let(:method_name) { "#{type}_leaves" }
 
