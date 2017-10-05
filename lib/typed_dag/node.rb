@@ -129,11 +129,15 @@ module TypedDag::Node
             .where(id: self.class.send("#{key}_leaves"))
         end
 
+        define_method :"#{key}_leaf?" do
+          send(:"#{config[:to]}_relations").empty?
+        end
+
         define_method :"#{key}_root?" do
           if config[:from].is_a?(Hash) && config[:from][:limit] == 1
-            send(config[:from][:name]).nil?
+            send(:"#{config[:from][:name]}_relation").nil?
           else
-            send(config[:from]).empty?
+            send(:"#{config[:from]}_relations").empty?
           end
         end
       end
@@ -141,12 +145,6 @@ module TypedDag::Node
   end
 
   module InstanceMethods
-    def leaf?
-      !relations_from
-        .where(hierarchy: 1)
-        .exists?
-    end
-
     def child?
       !!parent_relation
     end

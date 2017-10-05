@@ -25,33 +25,6 @@ RSpec.describe TypedDag do
     grandparent
   end
 
-  describe '#leaf?' do
-    it 'is true' do
-      expect(message)
-        .to be_leaf
-    end
-
-    context 'unpersisted' do
-      it 'is true' do
-        msg = Message.new
-
-        expect(msg)
-          .to be_leaf
-      end
-    end
-
-    context 'with a child' do
-      before do
-        child_message
-      end
-
-      it 'is false' do
-        expect(message)
-          .not_to be_leaf
-      end
-    end
-  end
-
   describe '#in_closure?' do
     it 'is false' do
       expect(message.in_closure?(other_message))
@@ -135,7 +108,7 @@ RSpec.describe TypedDag do
       end
     end
 
-    describe ".#{type}_root?" do
+    describe "##{type}_root?" do
       let(:method_name) { "#{type}_root?" }
 
       description = <<-'WITH'
@@ -179,6 +152,50 @@ RSpec.describe TypedDag do
       end
     end
 
+    describe "#{type}_leaf?" do
+      let(:method_name) { "#{type}_leaf?" }
+
+      description = <<-'WITH'
+
+        DAG:
+                A
+
+      WITH
+      context description do
+        let!(:a) { Message.create text: 'A' }
+
+        it 'is true for A' do
+          expect(a.send(method_name))
+            .to be_truthy
+        end
+      end
+
+      description = <<-'WITH'
+
+        DAG:
+                A
+                |
+                |
+                +
+                B
+
+      WITH
+      context description do
+        let!(:a) { Message.create text: 'A' }
+        let!(:b) { message_with_from 'B', a }
+
+        it 'is false for A' do
+          expect(a.send(method_name))
+            .to be_falsy
+        end
+
+        it 'is true for B' do
+          expect(b.send(method_name))
+            .to be_truthy
+        end
+      end
+    end
+
     describe ".#{type}_leaves" do
       let(:method_name) { "#{type}_leaves" }
 
@@ -196,41 +213,6 @@ RSpec.describe TypedDag do
             .to match_array [a]
         end
       end
-      description = <<-'WITH'
-
-        DAG:
-                A
-               / \
-              /   \
-             +     +
-            B       F
-           / \
-          /   \
-         +     +
-        C       D
-                |
-                |
-                +
-                E
-
-      WITH
-      context description do
-        let!(:a) { Message.create text: 'A' }
-        let!(:b) { message_with_from 'B', a }
-        let!(:c) { message_with_from 'C', b }
-        let!(:d) { message_with_from 'D', b }
-        let!(:e) { message_with_from 'E', d }
-        let!(:f) { message_with_from 'F', a }
-
-        it 'is C, E, F' do
-          expect(Message.send(method_name))
-            .to match_array [c, e, f]
-        end
-      end
-    end
-
-    describe "##{type}_leaves" do
-      let(:method_name) { "#{type}_leaves" }
 
       description = <<-'WITH'
 
@@ -1849,6 +1831,60 @@ RSpec.describe TypedDag do
         it 'throws an error if more attepts than specified are made' do
           expect { Message.rebuild_dag!(1) }
             .to raise_error(TypedDag::RebuildDag::AttemptsExceededError)
+        end
+      end
+    end
+
+    describe '*_leaf?' do
+      description = <<-'WITH'
+
+        DAG:
+                   ------- A -------
+                  /                 \
+            invalidate            hierarchy
+                /                     \
+               B                       C
+               |                       |
+           hierarchy               invalidate
+               |                       |
+               D                       E
+
+      WITH
+      context description do
+        let!(:a) { Message.create text: 'A' }
+        let!(:b) { create_message_with_invalidated_by('B', a) }
+        let!(:c) { Message.create text: 'C', parent: a }
+        let!(:d) { Message.create text: 'D', parent: b }
+        let!(:e) { create_message_with_invalidated_by('E', c) }
+
+        it '#invalidate_leaf? for A is false' do
+          expect(a)
+            .not_to be_invalidate_leaf
+        end
+
+        it '#hierarchy_leaf? for A is false' do
+          expect(a)
+            .not_to be_hierarchy_leaf
+        end
+
+        it '#invalidate_leaf? for B is true' do
+          expect(b)
+            .to be_invalidate_leaf
+        end
+
+        it '#hierarchy_leaf? for B is false' do
+          expect(b)
+            .not_to be_hierarchy_leaf
+        end
+
+        it '#invalidate_leaf? for C is false' do
+          expect(c)
+            .not_to be_invalidate_leaf
+        end
+
+        it '#hierarchy_leaf? for C is true' do
+          expect(c)
+            .to be_hierarchy_leaf
         end
       end
     end
