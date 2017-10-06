@@ -1,6 +1,8 @@
 require 'spec_helper'
 
 RSpec.describe TypedDag::Node, 'included in Message' do
+  include TypedDag::Specs::Helpers
+
   let(:message) { Message.create }
   let(:other_message) { Message.create }
   let(:child_message) { Message.create parent: message }
@@ -80,24 +82,6 @@ RSpec.describe TypedDag::Node, 'included in Message' do
     all_to_depth = (configuration[:all_to].to_s + '_of_depth').to_sym
     all_from = configuration[:all_from]
     all_from_depth = (configuration[:all_from].to_s + '_of_depth').to_sym
-
-    def from_one_or_array(message)
-      if from_limit == 1
-        message
-      else
-        Array(message)
-      end
-    end
-
-    def message_with_from(text, parent)
-      if from_limit == 1
-        Message.create text: text, from => from_one_or_array(parent)
-      else
-        m = Message.create text: text
-        m.send("#{from}=", from_one_or_array(parent))
-        m
-      end
-    end
 
     describe "##{type}_root?" do
       let(:method_name) { "#{type}_root?" }
@@ -1344,12 +1328,6 @@ RSpec.describe TypedDag::Node, 'included in Message' do
   end
 
   context 'relations of various types' do
-    def create_message_with_invalidated_by(text, invalidated_by)
-      message = Message.create text: text
-      message.invalidated_by = Array(invalidated_by)
-      message
-    end
-
     describe 'directly to' do
       description = <<-'WITH'
 
