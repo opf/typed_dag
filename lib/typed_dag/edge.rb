@@ -10,7 +10,7 @@ module TypedDag::Edge
     include Associations
   end
 
-  module ClassMethods
+  class_methods do
     def _dag_options
       TypedDag::Configuration[self]
     end
@@ -21,14 +21,10 @@ module TypedDag::Edge
       self.class._dag_options
     end
 
-    def direct_edge?
-      _dag_options.type_columns.one? { |type_column| send(type_column) == 1 }
-    end
-
     private
 
     def add_closures
-      return unless direct_edge?
+      return unless direct?
 
       self.class.connection.execute add_dag_closure_sql
     end
@@ -36,7 +32,7 @@ module TypedDag::Edge
     def truncate_closures
       # The destroyed callback is also run for unpersisted records.
       # However, #persisted? will be false for destroyed records.
-      return unless direct_edge? && !new_record?
+      return unless direct? && !new_record?
 
       self.class.connection.execute truncate_dag_closure_sql
     end
@@ -100,6 +96,24 @@ module TypedDag::Edge
       def self.of_from_and_to(from, to)
         where(_dag_options.from_column => from,
               _dag_options.to_column => to)
+      end
+
+      def self.direct
+        where("#{_dag_options.type_columns.join(' + ')} = 1")
+      end
+
+      def direct?
+        _dag_options.type_columns.one? { |column| send(column) == 1 }
+      end
+
+      _dag_options.types.each do |key, _config|
+        define_singleton_method :"#{key}" do
+          with_type_columns_not(key => 0)
+        end
+
+        define_singleton_method :"non_#{key}" do
+          where(key => 0)
+        end
       end
 
       private
