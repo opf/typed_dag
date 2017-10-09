@@ -24,6 +24,15 @@ module TypedDag
         message.invalidated_by = Array(invalidated_by)
         message
       end
+
+      def to_attribute_array(relations)
+        relations.map do |r|
+          [r.from.text,
+           r.to.text,
+           r.hierarchy,
+           r.invalidate]
+        end
+      end
     end
   end
 end

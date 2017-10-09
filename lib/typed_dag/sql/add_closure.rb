@@ -41,8 +41,8 @@ module TypedDag::Sql::AddClosure
           CASE
             WHEN r1.#{to_column} = r2.#{from_column} AND (r1.#{column} > 0 OR r2.#{column} > 0)
             THEN r1.#{column} + r2.#{column}
-            WHEN r1.#{to_column} != r2.#{from_column} AND (r1.#{column} > 0 OR r2.#{column} > 0)
-            THEN r1.#{column} + r2.#{column} + 1
+            WHEN r1.#{to_column} != r2.#{from_column}
+            THEN r1.#{column} + r2.#{column} + #{relation.send(column)}
             ELSE 0
             END
         SQL

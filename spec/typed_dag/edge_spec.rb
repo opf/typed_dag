@@ -292,5 +292,73 @@ RSpec.describe 'Edge' do
                            ['A', 'F', 2, 0]]
       end
     end
+
+    describe 'altering type (column)' do
+      description = <<-'WITH'
+
+        DAG before:
+                           A
+                           |
+                       invalidate
+                           +
+                           B
+                           |
+                       invalidate
+                           +
+                           C
+                          / \
+                invalidate   hierarchy
+                        +     +
+                       D       E
+      WITH
+      context description do
+        let!(:a) { Message.create text: 'A' }
+        let!(:b) { create_message_with_invalidated_by('B', a) }
+        let!(:c) { create_message_with_invalidated_by('C', b) }
+        let!(:d) { create_message_with_invalidated_by('D', c) }
+        let!(:e) { Message.create text: 'E', parent: c }
+
+        description = <<-'WITH'
+
+        DAG after (altering relation between B and C):
+                           A
+                           |
+                       invalidate
+                           +
+                           B
+                           |
+                       hierarchy
+                           +
+                           C
+                          / \
+                invalidate   hierarchy
+                        +     +
+                       D       E
+        WITH
+
+        context description do
+          before do
+            r = Relation.where(from: b, to: c).first
+            r.hierarchy = 1
+            r.invalidate = 0
+            r.save!
+          end
+
+          it 'expects the transitive relations to be updated' do
+            attribute_array = to_attribute_array Relation.all
+            expect(attribute_array)
+              .to match_array([['A', 'B', 0, 1],
+                               ['A', 'C', 1, 1],
+                               ['A', 'D', 1, 2],
+                               ['A', 'E', 2, 1],
+                               ['B', 'C', 1, 0],
+                               ['B', 'D', 1, 1],
+                               ['B', 'E', 2, 0],
+                               ['C', 'D', 0, 1],
+                               ['C', 'E', 1, 0]])
+          end
+        end
+      end
+    end
   end
 end

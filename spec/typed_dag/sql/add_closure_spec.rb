@@ -8,7 +8,7 @@ RSpec.describe TypedDag::Sql::AddClosure do
       string.squish.gsub('( ', '(').gsub(' )', ')').gsub(' , ', ', ')
     end
 
-    it 'produces the correct sql for postgresql' do
+    it 'produces the correct sql' do
       expected_sql = <<-SQL
         INSERT INTO
 
@@ -23,14 +23,14 @@ RSpec.describe TypedDag::Sql::AddClosure do
           CASE
             WHEN r1.descendant_id = r2.ancestor_id AND (r1.hierarchy > 0 OR r2.hierarchy > 0)
             THEN r1.hierarchy + r2.hierarchy
-            WHEN r1.descendant_id != r2.ancestor_id AND (r1.hierarchy > 0 OR r2.hierarchy > 0)
-            THEN r1.hierarchy + r2.hierarchy + 1
+            WHEN r1.descendant_id != r2.ancestor_id
+            THEN r1.hierarchy + r2.hierarchy + 0
             ELSE 0
             END,
           CASE
             WHEN r1.descendant_id = r2.ancestor_id AND (r1.invalidate > 0 OR r2.invalidate > 0)
             THEN r1.invalidate + r2.invalidate
-            WHEN r1.descendant_id != r2.ancestor_id AND (r1.invalidate > 0 OR r2.invalidate > 0)
+            WHEN r1.descendant_id != r2.ancestor_id
             THEN r1.invalidate + r2.invalidate + 1
             ELSE 0
             END
