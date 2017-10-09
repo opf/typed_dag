@@ -19,21 +19,10 @@ module TypedDag::Sql::TruncateClosure
         WHERE id IN
           (SELECT id
           FROM (
-            SELECT COUNT(id) count, #{from_column}, #{to_column}, #{type_select_list}
-            FROM (
-
-               #{select_relations_joined_by_to_and_from}
-
-             UNION ALL
-
-                #{select_relations_starting_from_to}
-
-             UNION ALL
-
-                #{select_relations_ending_in_from}
-
-             ) aggregation
-             GROUP BY #{from_column}, #{to_column}, #{type_select_list}) criteria
+            SELECT COUNT(*) count, #{from_column}, #{to_column}, #{type_select_list}
+            FROM
+              (#{closure_select}) aggregation
+            GROUP BY #{from_column}, #{to_column}, #{type_select_list}) criteria
 
           JOIN
             (#{rank_similar_relations}) ranked
@@ -46,34 +35,8 @@ module TypedDag::Sql::TruncateClosure
 
     attr_accessor :relation
 
-    def select_relations_joined_by_to_and_from
-      <<-SQL
-        SELECT froms.id, froms.#{from_column}, tos.#{to_column}, #{type_sums_select_list}
-          FROM
-            #{table_name} froms
-          JOIN
-            #{table_name} tos
-          ON
-              froms.#{to_column} = #{from_id_value} AND tos.#{from_column} = #{from_id_value}
-            AND
-              froms.#{to_column} = tos.#{from_column}
-      SQL
-    end
-
-    def select_relations_starting_from_to
-      <<-SQL
-        SELECT id, #{from_id_value}, #{to_column}, #{type_sum_value_select_list}
-          FROM #{table_name}
-          WHERE #{from_column} = #{to_id_value}
-      SQL
-    end
-
-    def select_relations_ending_in_from
-      <<-SQL
-        SELECT id, #{from_column}, #{to_id_value}, #{type_sum_value_select_list}
-             FROM #{table_name}
-             WHERE #{to_column} = #{from_id_value}
-      SQL
+    def closure_select
+      TypedDag::Sql::SelectClosure.sql(relation)
     end
 
     def rank_similar_relations
@@ -103,18 +66,6 @@ module TypedDag::Sql::TruncateClosure
       type_columns.map do |column|
         "ranked.#{column} = criteria.#{column}"
       end.join(' AND ')
-    end
-
-    def type_sum_value_select_list
-      type_column_values_pairs.map do |column, value|
-        "#{column} + #{value}"
-      end.join(', ')
-    end
-
-    def type_sums_select_list
-      type_columns.map do |column|
-        "froms.#{column} + tos.#{column} AS #{column}"
-      end.join(', ')
     end
 
     def mysql_db?

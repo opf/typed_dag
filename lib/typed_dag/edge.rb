@@ -117,6 +117,10 @@ module TypedDag::Edge
         where("#{_dag_options.type_columns.join(' + ')} = 1")
       end
 
+      def self.non_reflexive
+        where("#{_dag_options.type_columns.join(' + ')} > 0")
+      end
+
       def direct?
         _dag_options.type_columns.one? { |column| send(column) == 1 }
       end
