@@ -17,31 +17,32 @@ RSpec.describe TypedDag::Sql::TruncateClosure do
           WHERE id IN (
             SELECT id
             FROM (
-              SELECT COUNT(id) count, ancestor_id, descendant_id, hierarchy, invalidate
+              SELECT COUNT(*) count, ancestor_id, descendant_id, hierarchy, invalidate
               FROM (
-                SELECT froms.id, froms.ancestor_id, tos.descendant_id,
-                       froms.hierarchy + tos.hierarchy AS hierarchy,
-                       froms.invalidate + tos.invalidate AS invalidate
-                  FROM
-                    relations froms
-                  JOIN
-                    relations tos
-                  ON
-                    froms.descendant_id = 4 AND tos.ancestor_id = 4
-                  AND
-                    froms.descendant_id = tos.ancestor_id
+                SELECT
+                  r1.ancestor_id,
+                  r2.descendant_id,
+                  CASE
+                    WHEN r1.descendant_id = r2.ancestor_id AND (r1.hierarchy > 0 OR r2.hierarchy > 0)
+                    THEN r1.hierarchy + r2.hierarchy
+                    WHEN r1.descendant_id != r2.ancestor_id
+                    THEN r1.hierarchy + r2.hierarchy + 0
+                    ELSE 0
+                    END AS hierarchy ,
+                  CASE
+                    WHEN r1.descendant_id = r2.ancestor_id AND (r1.invalidate > 0 OR r2.invalidate > 0)
+                    THEN r1.invalidate + r2.invalidate
+                    WHEN r1.descendant_id != r2.ancestor_id
+                    THEN r1.invalidate + r2.invalidate + 1
+                    ELSE 0
+                    END AS invalidate
 
-                UNION ALL
-
-                SELECT id, 4, descendant_id, hierarchy + 0, invalidate + 1
-                  FROM relations
-                  WHERE ancestor_id = 6
-
-                UNION ALL
-
-                SELECT id, ancestor_id, 6, hierarchy + 0, invalidate + 1
-                  FROM relations
-                  WHERE descendant_id = 4
+                FROM
+                  relations r1
+                JOIN
+                  relations r2
+                ON
+                  (r1.descendant_id = 4 AND r2.ancestor_id = 6 AND NOT (r1.ancestor_id = 4 AND r2.descendant_id = 6))
                 ) aggregation
                 GROUP BY ancestor_id, descendant_id, hierarchy, invalidate) criteria
               JOIN
@@ -81,31 +82,32 @@ RSpec.describe TypedDag::Sql::TruncateClosure do
           WHERE id IN (
             SELECT id
             FROM (
-              SELECT COUNT(id) count, ancestor_id, descendant_id, hierarchy, invalidate
+              SELECT COUNT(*) count, ancestor_id, descendant_id, hierarchy, invalidate
               FROM (
-                SELECT froms.id, froms.ancestor_id, tos.descendant_id,
-                       froms.hierarchy + tos.hierarchy AS hierarchy,
-                       froms.invalidate + tos.invalidate AS invalidate
-                  FROM
-                    relations froms
-                  JOIN
-                    relations tos
-                  ON
-                    froms.descendant_id = 4 AND tos.ancestor_id = 4
-                  AND
-                    froms.descendant_id = tos.ancestor_id
+                SELECT
+                  r1.ancestor_id,
+                  r2.descendant_id,
+                  CASE
+                    WHEN r1.descendant_id = r2.ancestor_id AND (r1.hierarchy > 0 OR r2.hierarchy > 0)
+                    THEN r1.hierarchy + r2.hierarchy
+                    WHEN r1.descendant_id != r2.ancestor_id
+                    THEN r1.hierarchy + r2.hierarchy + 0
+                    ELSE 0
+                    END AS hierarchy ,
+                  CASE
+                    WHEN r1.descendant_id = r2.ancestor_id AND (r1.invalidate > 0 OR r2.invalidate > 0)
+                    THEN r1.invalidate + r2.invalidate
+                    WHEN r1.descendant_id != r2.ancestor_id
+                    THEN r1.invalidate + r2.invalidate + 1
+                    ELSE 0
+                    END AS invalidate
 
-                UNION ALL
-
-                SELECT id, 4, descendant_id, hierarchy + 0, invalidate + 1
-                  FROM relations
-                  WHERE ancestor_id = 6
-
-                UNION ALL
-
-                SELECT id, ancestor_id, 6, hierarchy + 0, invalidate + 1
-                  FROM relations
-                  WHERE descendant_id = 4
+                FROM
+                  relations r1
+                JOIN
+                  relations r2
+                ON
+                  (r1.descendant_id = 4 AND r2.ancestor_id = 6 AND NOT (r1.ancestor_id = 4 AND r2.descendant_id = 6))
                 ) aggregation
                 GROUP BY ancestor_id, descendant_id, hierarchy, invalidate) criteria
               JOIN

@@ -39,6 +39,8 @@ module TypedDag::Node
       end
       private_class_method :dag_relations_association_lambda
 
+      after_create :insert_reflexiv_relation
+
       has_many :relations_from,
                class_name: _dag_options.edge_class_name,
                foreign_key: _dag_options.from_column,
@@ -139,6 +141,10 @@ module TypedDag::Node
           else
             send(:"#{config[:from]}_relations").empty?
           end
+        end
+
+        def insert_reflexiv_relation
+          Relation.new(from: self, to: self).save(validate: false)
         end
       end
     end

@@ -19,7 +19,7 @@ RSpec.describe 'Edge' do
         .to be_valid
     end
 
-    context 'without an from' do
+    context 'without a from' do
       let(:from) { nil }
 
       it 'is invalid' do
@@ -263,7 +263,7 @@ RSpec.describe 'Edge' do
       let!(:f) { Message.create text: 'F', parent: c }
 
       it 'returns all hierarchy relations (including transtitive) for #hierarchy' do
-        expect(Relation.hierarchy.map { |r| [r.from.text, r.to.text, r.hierarchy, r.invalidate ] })
+        expect(Relation.non_reflexive.hierarchy.map { |r| [r.from.text, r.to.text, r.hierarchy, r.invalidate ] })
           .to match_array [['B', 'D', 1, 0],
                            ['A', 'C', 1, 0],
                            ['C', 'F', 1, 0],
@@ -271,25 +271,294 @@ RSpec.describe 'Edge' do
       end
 
       it 'returns all invalidate relations (including transtitive) for #invalidate' do
-        expect(Relation.invalidate.map { |r| [r.from.text, r.to.text, r.hierarchy, r.invalidate ] })
+        expect(Relation.non_reflexive.invalidate.map { |r| [r.from.text, r.to.text, r.hierarchy, r.invalidate ] })
           .to match_array [['A', 'B', 0, 1],
                            ['B', 'E', 0, 1],
                            ['A', 'E', 0, 2]]
       end
 
       it 'returns all non hierarchy relations (including transtitive) for #non_hierarchy' do
-        expect(Relation.non_hierarchy.map { |r| [r.from.text, r.to.text, r.hierarchy, r.invalidate ] })
+        expect(Relation.non_reflexive.non_hierarchy.map { |r| [r.from.text, r.to.text, r.hierarchy, r.invalidate ] })
           .to match_array [['A', 'B', 0, 1],
                            ['B', 'E', 0, 1],
                            ['A', 'E', 0, 2]]
       end
 
       it 'returns all non invalidate relations (including transtitive) for #non_invalidate' do
-        expect(Relation.non_invalidate.map { |r| [r.from.text, r.to.text, r.hierarchy, r.invalidate ] })
+        expect(Relation.non_reflexive.non_invalidate.map { |r| [r.from.text, r.to.text, r.hierarchy, r.invalidate ] })
           .to match_array [['B', 'D', 1, 0],
                            ['A', 'C', 1, 0],
                            ['C', 'F', 1, 0],
                            ['A', 'F', 2, 0]]
+      end
+    end
+
+    describe 'altering type (column)' do
+      description = <<-'WITH'
+
+        DAG before:
+                           A
+                           |
+                       invalidate
+                           +
+                           B
+                           |
+                       invalidate
+                           +
+                           C
+                          / \
+                invalidate   hierarchy
+                        +     +
+                       D       E
+      WITH
+      context description do
+        let!(:a) { Message.create text: 'A' }
+        let!(:b) { create_message_with_invalidated_by('B', a) }
+        let!(:c) { create_message_with_invalidated_by('C', b) }
+        let!(:d) { create_message_with_invalidated_by('D', c) }
+        let!(:e) { Message.create text: 'E', parent: c }
+
+        description = <<-'WITH'
+
+        DAG after (altering relation between B and C):
+                           A
+                           |
+                       invalidate
+                           +
+                           B
+                           |
+                       hierarchy
+                           +
+                           C
+                          / \
+                invalidate   hierarchy
+                        +     +
+                       D       E
+        WITH
+
+        context description do
+          before do
+            r = Relation.where(from: b, to: c).first
+            r.hierarchy = 1
+            r.invalidate = 0
+            r.save!
+          end
+
+          it 'expects the transitive relations to be updated' do
+            attribute_array = to_attribute_array Relation.non_reflexive
+            expect(attribute_array)
+              .to match_array([['A', 'B', 0, 1],
+                               ['A', 'C', 1, 1],
+                               ['A', 'D', 1, 2],
+                               ['A', 'E', 2, 1],
+                               ['B', 'C', 1, 0],
+                               ['B', 'D', 1, 1],
+                               ['B', 'E', 2, 0],
+                               ['C', 'D', 0, 1],
+                               ['C', 'E', 1, 0]])
+          end
+        end
+      end
+    end
+
+    describe 'altering ancestor' do
+      description = <<-'WITH'
+
+        DAG before:
+                           A           F
+                           |
+                       invalidate
+                           +
+                           B
+                           |
+                       invalidate
+                           +
+                           C
+                          / \
+                invalidate   hierarchy
+                        +     +
+                       D       E
+      WITH
+      context description do
+        let!(:a) { Message.create text: 'A' }
+        let!(:b) { create_message_with_invalidated_by('B', a) }
+        let!(:c) { create_message_with_invalidated_by('C', b) }
+        let!(:d) { create_message_with_invalidated_by('D', c) }
+        let!(:e) { Message.create text: 'E', parent: c }
+        let!(:f) { Message.create text: 'F' }
+
+        description = <<-'WITH'
+
+        DAG after (changing B's invalidate from A to F):
+               A           F
+                           |
+                       invalidate
+                           +
+                           B
+                           |
+                       invalidate
+                           +
+                           C
+                          / \
+                invalidate   hierarchy
+                        +     +
+                       D       E
+        WITH
+
+        context description do
+          before do
+            r = Relation.where(from: a, to: b).first
+            r.from = f
+            r.save!
+          end
+
+          it 'expects the transitive relations to be updated' do
+            attribute_array = to_attribute_array Relation.non_reflexive
+            expect(attribute_array)
+              .to match_array([['F', 'B', 0, 1],
+                               ['F', 'C', 0, 2],
+                               ['F', 'D', 0, 3],
+                               ['F', 'E', 1, 2],
+                               ['B', 'C', 0, 1],
+                               ['B', 'D', 0, 2],
+                               ['B', 'E', 1, 1],
+                               ['C', 'D', 0, 1],
+                               ['C', 'E', 1, 0]])
+          end
+        end
+      end
+    end
+
+    describe 'altering descendant' do
+      description = <<-'WITH'
+
+        DAG before:
+                           A           F
+                           |
+                       invalidate
+                           +
+                           B
+                           |
+                       invalidate
+                           +
+                           C
+                          / \
+                invalidate   hierarchy
+                        +     +
+                       D       E
+      WITH
+      context description do
+        let!(:a) { Message.create text: 'A' }
+        let!(:b) { create_message_with_invalidated_by('B', a) }
+        let!(:c) { create_message_with_invalidated_by('C', b) }
+        let!(:d) { create_message_with_invalidated_by('D', c) }
+        let!(:e) { Message.create text: 'E', parent: c }
+        let!(:f) { Message.create text: 'F' }
+
+        description = <<-'WITH'
+
+        DAG after (changing B's invalidate from A to F):
+                           A
+                           |
+                       invalidate
+                           +
+                           B
+                           |
+                       invalidate
+                           +
+                           C
+                          / \
+                invalidate   hierarchy
+                        +     +
+              D        F       E
+        WITH
+
+        context description do
+          before do
+            r = Relation.where(from: c, to: d).first
+            r.to = f
+            r.save!
+          end
+
+          it 'expects the transitive relations to be updated' do
+            attribute_array = to_attribute_array Relation.non_reflexive
+            expect(attribute_array)
+              .to match_array([['A', 'B', 0, 1],
+                               ['A', 'C', 0, 2],
+                               ['A', 'F', 0, 3],
+                               ['A', 'E', 1, 2],
+                               ['B', 'C', 0, 1],
+                               ['B', 'F', 0, 2],
+                               ['B', 'E', 1, 1],
+                               ['C', 'F', 0, 1],
+                               ['C', 'E', 1, 0]])
+          end
+        end
+      end
+    end
+
+    describe 'altering ancestor' do
+      description = <<-'WITH'
+
+        DAG before:
+                           A           F
+                           |
+                       invalidate
+                           +
+                           B
+                           |
+                       invalidate
+                           +
+                           C
+                          / \
+                invalidate   hierarchy
+                        +     +
+                       D       E
+      WITH
+      context description do
+        let!(:a) { Message.create text: 'A' }
+        let!(:b) { create_message_with_invalidated_by('B', a) }
+        let!(:c) { create_message_with_invalidated_by('C', b) }
+        let!(:d) { create_message_with_invalidated_by('D', c) }
+        let!(:e) { Message.create text: 'E', parent: c }
+        let!(:f) { Message.create text: 'F' }
+
+        description = <<-'WITH'
+
+        DAG after (changing B's invalidate from A to F):
+
+                   A
+                   |                      F
+               invalidate                 |
+                   +                  invalidate
+                   B                      +
+                                          C
+                                         / \
+                               invalidate   hierarchy
+                                       +     +
+                                      D       E
+
+
+        WITH
+
+        context description do
+          before do
+            r = Relation.where(from: b, to: c).first
+            r.from = f
+            r.save!
+          end
+
+          it 'expects the transitive relations to be updated' do
+            attribute_array = to_attribute_array Relation.non_reflexive
+            expect(attribute_array)
+              .to match_array([['A', 'B', 0, 1],
+                               ['F', 'C', 0, 1],
+                               ['C', 'D', 0, 1],
+                               ['C', 'E', 1, 0],
+                               ['F', 'D', 0, 2],
+                               ['F', 'E', 1, 1]])
+          end
+        end
       end
     end
   end

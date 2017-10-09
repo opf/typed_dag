@@ -34,15 +34,29 @@ module TypedDag::Edge
       # However, #persisted? will be false for destroyed records.
       return unless direct? && !new_record?
 
-      self.class.connection.execute truncate_dag_closure_sql
+      self.class.connection.execute truncate_dag_closure_sql(self)
+    end
+
+    def truncate_closures_with_former_values
+      former_values_relation = self.dup
+      former_values_relation.attributes = saved_changes.transform_values(&:first)
+
+      self.class.connection.execute truncate_dag_closure_sql(former_values_relation)
+    end
+
+    def alter_closure
+      return unless direct? && !id_before_last_save.nil?
+
+      truncate_closures_with_former_values
+      add_closures
     end
 
     def add_dag_closure_sql
       TypedDag::Sql::AddClosure.sql(self)
     end
 
-    def truncate_dag_closure_sql
-      TypedDag::Sql::TruncateClosure.sql(self)
+    def truncate_dag_closure_sql(relation)
+      TypedDag::Sql::TruncateClosure.sql(relation)
     end
 
     def from_id_value
@@ -59,6 +73,7 @@ module TypedDag::Edge
 
     included do
       after_create :add_closures
+      after_save :alter_closure
       after_destroy :truncate_closures
 
       validates_uniqueness_of :from,
@@ -100,6 +115,10 @@ module TypedDag::Edge
 
       def self.direct
         where("#{_dag_options.type_columns.join(' + ')} = 1")
+      end
+
+      def self.non_reflexive
+        where("#{_dag_options.type_columns.join(' + ')} > 0")
       end
 
       def direct?
