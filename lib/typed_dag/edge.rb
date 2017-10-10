@@ -39,13 +39,21 @@ module TypedDag::Edge
 
     def truncate_closures_with_former_values
       former_values_relation = self.dup
-      former_values_relation.attributes = saved_changes.transform_values(&:first)
+
+      # rails 5.1 vs rails 5.0
+      changes = if respond_to?(:saved_changes)
+                  saved_changes.transform_values(&:first)
+                else
+                  changed_attributes
+                end
+
+      former_values_relation.attributes = changes
 
       self.class.connection.execute truncate_dag_closure_sql(former_values_relation)
     end
 
     def alter_closure
-      return unless direct? && !id_before_last_save.nil?
+      return unless direct?
 
       truncate_closures_with_former_values
       add_closures
@@ -73,7 +81,7 @@ module TypedDag::Edge
 
     included do
       after_create :add_closures
-      after_save :alter_closure
+      after_update :alter_closure
       after_destroy :truncate_closures
 
       validates_uniqueness_of :from,
