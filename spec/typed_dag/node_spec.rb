@@ -127,6 +127,142 @@ RSpec.describe TypedDag::Node, 'included in Message' do
       end
     end
 
+    describe ".#{type}_roots" do
+      let(:method_name) { "#{type}_roots" }
+
+      description = <<-'WITH'
+
+        DAG:
+                A
+
+      WITH
+      context description do
+        let!(:a) { Message.create text: 'A' }
+
+        it 'is A' do
+          expect(Message.send(method_name))
+            .to match_array [a]
+        end
+      end
+
+      description = <<-'WITH'
+
+        DAG:
+                A
+                |
+                |
+                +
+                B
+
+      WITH
+      context description do
+        let!(:a) { Message.create text: 'A' }
+        let!(:b) { message_with_from 'B', a }
+
+        it 'is A' do
+          expect(Message.send(method_name))
+            .to match_array [a]
+        end
+      end
+    end
+
+    describe "##{type}_roots" do
+      let(:method_name) { "#{type}_roots" }
+
+      description = <<-'WITH'
+
+        DAG:
+                A
+
+      WITH
+      context description do
+        let!(:a) { Message.create text: 'A' }
+
+        it 'for a is empty' do
+          expect(a.send(method_name))
+            .to be_empty
+        end
+      end
+
+      if from_limit && from_limit == 1
+        description = <<-'WITH'
+
+          DAG:
+                  A
+                  |
+                  |
+                  +
+                  B
+                  |
+                  |
+                  +
+                  C
+
+        WITH
+        context description do
+          let!(:a) { Message.create text: 'A' }
+          let!(:b) { message_with_from 'B', a }
+          let!(:c) { message_with_from 'C', b }
+
+          it 'for a is empty' do
+            expect(a.send(method_name))
+              .to be_empty
+          end
+
+          it 'for b is a' do
+            expect(b.send(method_name))
+              .to match_array [a]
+          end
+
+          it 'for c is a' do
+            expect(c.send(method_name))
+              .to match_array [a]
+          end
+        end
+      else
+        description = <<-'WITH'
+
+          DAG:
+              A       B
+               \     /
+                \   /
+                 + +
+                  C
+                  |
+                  |
+                  +
+                  D
+
+        WITH
+        context description do
+          let!(:a) { Message.create text: 'A' }
+          let!(:b) { Message.create text: 'B' }
+          let!(:c) { message_with_from 'C', [a, b] }
+          let!(:d) { message_with_from 'D', c }
+
+          it 'for a is empty' do
+            expect(a.send(method_name))
+              .to be_empty
+          end
+
+          it 'for b is empty' do
+            expect(b.send(method_name))
+              .to be_empty
+          end
+
+          it 'for c is a and b' do
+            expect(c.send(method_name))
+              .to match_array [a, b]
+          end
+
+          it 'for d is a and b' do
+            expect(d.send(method_name))
+              .to match_array [a, b]
+          end
+        end
+      end
+    end
+
     describe "#{type}_leaf?" do
       let(:method_name) { "#{type}_leaf?" }
 
@@ -167,6 +303,57 @@ RSpec.describe TypedDag::Node, 'included in Message' do
         it 'is true for B' do
           expect(b.send(method_name))
             .to be_truthy
+        end
+      end
+    end
+
+    describe "##{type}_leaves" do
+      let(:method_name) { "#{type}_leaves" }
+
+      description = <<-'WITH'
+
+        DAG:
+                A
+
+      WITH
+      context description do
+        let!(:a) { Message.create text: 'A' }
+
+        it 'for a is empty' do
+          expect(a.send(method_name))
+            .to be_empty
+        end
+      end
+
+      description = <<-'WITH'
+
+        DAG:
+                A
+               / \
+              /   \
+             +     +
+            B       F
+           / \
+          /   \
+         +     +
+        C       D
+                |
+                |
+                +
+                E
+
+      WITH
+      context description do
+        let!(:a) { Message.create text: 'A' }
+        let!(:b) { message_with_from 'B', a }
+        let!(:c) { message_with_from 'C', b }
+        let!(:d) { message_with_from 'D', b }
+        let!(:e) { message_with_from 'E', d }
+        let!(:f) { message_with_from 'F', a }
+
+        it 'for A is C, E, F' do
+          expect(a.send(method_name))
+            .to match_array [c, e, f]
         end
       end
     end
@@ -215,8 +402,8 @@ RSpec.describe TypedDag::Node, 'included in Message' do
         let!(:e) { message_with_from 'E', d }
         let!(:f) { message_with_from 'F', a }
 
-        it 'for A is C, E, F' do
-          expect(a.send(method_name))
+        it 'is C, E, F' do
+          expect(Message.send(method_name))
             .to match_array [c, e, f]
         end
       end
