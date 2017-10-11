@@ -13,7 +13,12 @@ module TypedDag::Node
     _dag_options.types.each do |key, _|
       define_singleton_method :"#{key}_leaves" do
         where.not(id: _dag_options.edge_class.select(_dag_options.from_column)
-                                  .where(key => 1))
+                                  .with_type_columns(key => 1))
+      end
+
+      define_singleton_method :"#{key}_roots" do
+        where.not(id: _dag_options.edge_class.select(_dag_options.to_column)
+                                  .with_type_columns(key => 1))
       end
     end
   end
@@ -133,6 +138,11 @@ module TypedDag::Node
 
         define_method :"#{key}_leaf?" do
           send(:"#{config[:to]}_relations").empty?
+        end
+
+        define_method :"#{key}_roots" do
+          send(config[:all_from])
+            .where(id: self.class.send("#{key}_roots"))
         end
 
         define_method :"#{key}_root?" do
