@@ -46,12 +46,12 @@ module TypedDag::Node
 
       after_create :insert_reflexiv_relation
 
-      has_many :relations_from,
+      has_many :relations_to,
                class_name: _dag_options.edge_class_name,
                foreign_key: _dag_options.from_column,
                dependent: :destroy
 
-      has_many :relations_to,
+      has_many :relations_from,
                class_name: _dag_options.edge_class_name,
                foreign_key: _dag_options.to_column,
                dependent: :destroy
