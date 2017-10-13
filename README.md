@@ -197,7 +197,7 @@ This will create all direct edges. Using
   Node.rebuild_dag!
 ```
 
-will then generate the transitive one. Please note that it is required to first configure TypedDag in order to execute the statement.
+will then generate the transitive ones. Please note that it is required to first configure TypedDag in order to execute the statement.
 
 ## Contributing
 
