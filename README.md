@@ -185,8 +185,8 @@ When migrating from an different library, the details of course depend on the li
     INSERT INTO edges
       (from_id, to_id, hierarchy)
     SELECT n1.id, n2.id, 1
-    FROM nodes w1
-    JOIN nodes w2
+    FROM nodes n1
+    JOIN nodes n2
     ON n1.id = n2.parent_id
   SQL
 ```
