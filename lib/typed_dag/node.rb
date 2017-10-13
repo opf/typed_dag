@@ -154,7 +154,7 @@ module TypedDag::Node
         end
 
         def insert_reflexiv_relation
-          Relation.new(from: self, to: self).save(validate: false)
+          _dag_options.edge_class.new(from: self, to: self).save(validate: false)
         end
       end
     end
