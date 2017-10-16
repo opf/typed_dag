@@ -103,8 +103,8 @@ Based on the configuration, the AR models configured to be edges and nodes recei
 ### Node
 
 On an instance:
- * `relations_to` (`has_many` association): All edges ending in the node.
- * `relations_from` (`has_many` association): All edges starting from the node.
+ * `relations_from` (`has_many` association): All edges ending in the node.
+ * `relations_to` (`has_many` association): All edges starting from the node.
  * `[from]_relation` (only when limit is 1) (`has_one` association): The non transitive edges of the type ending in the node.
  * `[from]_relations` (only when limit is not 1) (`has_many` association): The non transitive edges of the type ending in the node.
  * `[from]` (`has_many`/`has_one` association): The nodes, or the single node, having non transitive edges of the type ending in the node.
