@@ -57,22 +57,29 @@ module TypedDag::Node
                dependent: :destroy
 
       _dag_options.types.each do |key, config|
-        if config[:from].is_a?(Hash) && config[:from][:limit] == 1
-          has_one :"#{config[:from][:name]}_relation",
+        from_one_limited = config[:from].is_a?(Hash) && config[:from][:limit] == 1
+        from_name = if config[:from].is_a?(Hash)
+                      config[:from][:name]
+                    else
+                      config[:from]
+                    end
+
+        if from_one_limited
+          has_one :"#{from_name}_relation",
                   dag_relations_association_lambda(key, 1),
                   class_name: _dag_options.edge_class_name,
                   foreign_key: _dag_options.to_column
 
-          has_one config[:from][:name],
+          has_one from_name,
                   through: :"#{config[:from][:name]}_relation",
                   source: :from
         else
-          has_many :"#{config[:from]}_relations",
+          has_many :"#{from_name}_relations",
                    dag_relations_association_lambda(key, 1),
                    class_name: _dag_options.edge_class_name,
                    foreign_key: _dag_options.to_column
 
-          has_many config[:from],
+          has_many from_name,
                    through: :"#{config[:from]}_relations",
                    source: :from,
                    dependent: :destroy
@@ -140,16 +147,28 @@ module TypedDag::Node
           send(:"#{config[:to]}_relations").empty?
         end
 
+        define_method :"#{config[:to].to_s.singularize}?" do
+          if from_one_limited
+            !!send(:"#{from_name}_relation")
+          else
+            send(:"#{from_name}_relations").any?
+          end
+        end
+
+        define_method :"#{from_name.to_s.singularize}?" do
+          send(:"#{config[:to]}_relations").any?
+        end
+
         define_method :"#{key}_roots" do
           send(config[:all_from])
             .where(id: self.class.send("#{key}_roots"))
         end
 
         define_method :"#{key}_root?" do
-          if config[:from].is_a?(Hash) && config[:from][:limit] == 1
-            send(:"#{config[:from][:name]}_relation").nil?
+          if from_one_limited
+            send(:"#{from_name}_relation").nil?
           else
-            send(:"#{config[:from]}_relations").empty?
+            send(:"#{from_name}_relations").empty?
           end
         end
 
@@ -161,10 +180,6 @@ module TypedDag::Node
   end
 
   module InstanceMethods
-    def child?
-      !!parent_relation
-    end
-
     def in_closure?(other_node)
       from_edge(other_node)
         .or(to_edge(other_node))

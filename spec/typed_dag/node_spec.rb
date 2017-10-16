@@ -49,24 +49,6 @@ RSpec.describe TypedDag::Node, 'included in Message' do
     end
   end
 
-  describe '#child?' do
-    it 'is false' do
-      expect(message)
-        .not_to be_child
-    end
-
-    context 'with a parent' do
-      before do
-        parent_message
-      end
-
-      it 'is true' do
-        expect(message)
-          .to be_child
-      end
-    end
-  end
-
   shared_examples_for 'single typed dag' do |configuration|
     type = configuration[:type]
     to = configuration[:to]
@@ -464,6 +446,156 @@ RSpec.describe TypedDag::Node, 'included in Message' do
         it 'includes B' do
           expect(a.send(to))
             .to match_array([b])
+        end
+      end
+    end
+
+    describe "##{to.to_s.singularize}? (is a directly to)" do
+      let(:method) { :"#{to.to_s.singularize}?" }
+      description = <<-WITH
+
+        DAG:
+          A
+      WITH
+      context description do
+        let!(:a) { Message.new }
+
+        it 'is false for a' do
+          expect(a.send(method))
+            .to be_falsey
+        end
+      end
+
+      description = <<-WITH
+
+        DAG:
+          A
+          |
+          |
+          |
+          B
+      WITH
+      context description do
+        let!(:a) { Message.create text: 'A' }
+        let!(:b) { message_with_from('B', a) }
+
+        it 'is false for a' do
+          expect(a.send(method))
+            .to be_falsey
+        end
+
+        it 'is true for b' do
+          expect(b.send(method))
+            .to be_truthy
+        end
+      end
+
+      description = <<-WITH
+
+        DAG:
+          A
+          |
+          |
+          |
+          B
+          |
+          |
+          |
+          C
+      WITH
+      context description do
+        let!(:a) { Message.create text: 'A' }
+        let!(:b) { message_with_from 'B', a }
+        let!(:c) { message_with_from 'C', b }
+
+        it 'is false for a' do
+          expect(a.send(method))
+            .to be_falsey
+        end
+
+        it 'is true for b' do
+          expect(b.send(method))
+            .to be_truthy
+        end
+
+        it 'is true for c' do
+          expect(c.send(method))
+            .to be_truthy
+        end
+      end
+    end
+
+    describe "##{from.to_s.singularize}? (is a directly from)" do
+      let(:method) { :"#{from.to_s.singularize}?" }
+      description = <<-WITH
+
+        DAG:
+          A
+      WITH
+      context description do
+        let!(:a) { Message.new }
+
+        it 'is false for a' do
+          expect(a.send(method))
+            .to be_falsey
+        end
+      end
+
+      description = <<-WITH
+
+        DAG:
+          A
+          |
+          |
+          |
+          B
+      WITH
+      context description do
+        let!(:a) { Message.create text: 'A' }
+        let!(:b) { message_with_from('B', a) }
+
+        it 'is true for a' do
+          expect(a.send(method))
+            .to be_truthy
+        end
+
+        it 'is false for b' do
+          expect(b.send(method))
+            .to be_falsey
+        end
+      end
+
+      description = <<-WITH
+
+        DAG:
+          A
+          |
+          |
+          |
+          B
+          |
+          |
+          |
+          C
+      WITH
+      context description do
+        let!(:a) { Message.create text: 'A' }
+        let!(:b) { message_with_from 'B', a }
+        let!(:c) { message_with_from 'C', b }
+
+        it 'is true for a' do
+          expect(a.send(method))
+            .to be_truthy
+        end
+
+        it 'is true for b' do
+          expect(b.send(method))
+            .to be_truthy
+        end
+
+        it 'is false for c' do
+          expect(c.send(method))
+            .to be_falsey
         end
       end
     end
