@@ -122,6 +122,8 @@ On an instance:
  * `[key]_leaf?`: Checks whether the node has edges of the type starting from the node.
  * `[key]_roots`: Scope to get all nodes having edges of the type ending in the node that have no edges of the type ending in themselves.
  * `[key]_root?`: Checks whether the node has edges of the type ending in the node.
+ * `[from.singularize]?: Checks whether the node has relations of the type starting from the node.
+ * `[to.singularize]?: Checks whether the node has relations of the type ending in the node.
 
 On the class:
  * `[key]_leaves`: All nodes having edges of the type ending in them.
