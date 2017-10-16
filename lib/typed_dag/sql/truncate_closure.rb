@@ -13,10 +13,41 @@ module TypedDag::Sql::TruncateClosure
     end
 
     def sql
+      if mysql_db?
+        sql_mysql
+      else
+        sql_postgresql
+      end
+    end
+
+    private
+
+    attr_accessor :relation
+
+    def sql_mysql
+      <<-SQL
+        DELETE
+          deletion_table
+        FROM
+          #{table_name} deletion_table
+        INNER JOIN
+          #{selection_table} selection_table
+        ON deletion_table.id = selection_table.id
+      SQL
+    end
+
+    def sql_postgresql
       <<-SQL
         DELETE FROM
-          #{table_name}
-        WHERE id IN
+          #{table_name} deletion_table
+        USING
+          #{selection_table} selection_table
+        WHERE deletion_table.id = selection_table.id
+      SQL
+    end
+
+    def selection_table
+      <<-SQL
           (SELECT id
           FROM (
             SELECT COUNT(*) count, #{from_column}, #{to_column}, #{type_select_list}
@@ -30,10 +61,6 @@ module TypedDag::Sql::TruncateClosure
             #{ranked_critieria_join_condition})
       SQL
     end
-
-    private
-
-    attr_accessor :relation
 
     def closure_select
       TypedDag::Sql::SelectClosure.sql(relation)

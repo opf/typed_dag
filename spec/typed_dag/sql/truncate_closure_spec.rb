@@ -12,10 +12,11 @@ RSpec.describe TypedDag::Sql::TruncateClosure do
       it 'produces the correct sql for mysql' do
         expected_sql = <<-SQL
           DELETE
+            deletion_table
           FROM
-            relations
-          WHERE id IN (
-            SELECT id
+            relations deletion_table
+          INNER JOIN
+            (SELECT id
             FROM (
               SELECT COUNT(*) count, ancestor_id, descendant_id, hierarchy, invalidate
               FROM (
@@ -66,7 +67,9 @@ RSpec.describe TypedDag::Sql::TruncateClosure do
               AND ranked.descendant_id = criteria.descendant_id
               AND ranked.hierarchy = criteria.hierarchy
               AND ranked.invalidate = criteria.invalidate
-              AND count >= row_number)
+              AND count >= row_number) selection_table
+            ON
+              deletion_table.id = selection_table.id
         SQL
 
         expect(harmonize_string(described_class.sql(relation)))
@@ -78,9 +81,9 @@ RSpec.describe TypedDag::Sql::TruncateClosure do
 
           DELETE
           FROM
-            relations
-          WHERE id IN (
-            SELECT id
+            relations deletion_table
+          USING
+            (SELECT id
             FROM (
               SELECT COUNT(*) count, ancestor_id, descendant_id, hierarchy, invalidate
               FROM (
@@ -124,7 +127,9 @@ RSpec.describe TypedDag::Sql::TruncateClosure do
               AND ranked.descendant_id = criteria.descendant_id
               AND ranked.hierarchy = criteria.hierarchy
               AND ranked.invalidate = criteria.invalidate
-              AND count >= row_number)
+              AND count >= row_number) selection_table
+            WHERE
+              deletion_table.id = selection_table.id
         SQL
 
         expect(harmonize_string(described_class.sql(relation)))
