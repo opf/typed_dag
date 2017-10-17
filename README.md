@@ -1,6 +1,7 @@
 # TypedDag
 
 [<img src="https://travis-ci.org/opf/typed_dag.svg?branch=master" alt="Build Status" />](https://travis-ci.org/opf/typed_dag)
+[![Maintainability](https://api.codeclimate.com/v1/badges/0ac421a0c2367f325b1e/maintainability)](https://codeclimate.com/github/opf/typed_dag/maintainability)
 
 This gem supports [directed acyclic graphs](https://en.wikipedia.org/wiki/Directed_acyclic_graph) (DAG) on ActiveRecord models.  Trees, as a subset of a DAG, are also supported. The edges in the modeled DAG are typed, which allows having multiple DAGs over the same set of nodes. E.g. in a forum application, the Messages can be in a tree modeling the hierarchy, while at the same time having a DAG for Messages referencing each other. Queries for nodes/edges can either be limited to a single type (e.g. hierarchy) but can also span a set of types.
 
