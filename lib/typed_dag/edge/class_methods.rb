@@ -12,15 +12,15 @@ module TypedDag::Edge
       def self.with_type_columns_not(column_requirements)
         where
           .not(column_requirements)
-          .with_type_colums_0(_dag_options.type_columns - column_requirements.keys)
+          .with_type_columns_0(_dag_options.type_columns - column_requirements.keys)
       end
 
       def self.with_type_columns(column_requirements)
         where(column_requirements)
-          .with_type_colums_0(_dag_options.type_columns - column_requirements.keys)
+          .with_type_columns_0(_dag_options.type_columns - column_requirements.keys)
       end
 
-      def self.with_type_colums_0(columns)
+      def self.with_type_columns_0(columns)
         requirements = columns.map { |column| [column, 0] }.to_h
 
         where(requirements)
