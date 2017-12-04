@@ -2037,6 +2037,11 @@ RSpec.describe TypedDag::Node, 'included in Message' do
           expect(a.all_invalidates_of_depth(4))
             .to match_array([g])
         end
+
+        it 'rebuilds all reflexive relations' do
+          expect(Relation.where(hierarchy: 0, invalidate: 0).count)
+            .to eql 9
+        end
       end
 
       description = <<-'WITH'

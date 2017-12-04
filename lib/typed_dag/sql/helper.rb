@@ -7,6 +7,10 @@ class TypedDag::Sql::Helper
     configuration.edge_table_name
   end
 
+  def node_table_name
+    configuration.node_table_name
+  end
+
   def to_column
     configuration.to_column
   end

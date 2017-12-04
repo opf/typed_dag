@@ -5,5 +5,6 @@ module TypedDag
     require 'typed_dag/sql/insert_closure_of_depth'
     require 'typed_dag/sql/get_circular'
     require 'typed_dag/sql/remove_invalid_relation'
+    require 'typed_dag/sql/insert_reflexive'
   end
 end
