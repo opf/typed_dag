@@ -23,6 +23,8 @@ module TypedDag::RebuildDag
     def truncate_and_rebuild
       _dag_options.edge_class.where("#{dag_helper.sum_of_type_columns} != 1").delete_all
 
+      insert_transitive_relations
+
       build_closures
     end
 
@@ -63,6 +65,12 @@ module TypedDag::RebuildDag
       ActiveRecord::Base
         .connection
         .execute TypedDag::Sql::RemoveInvalidRelation.sql(_dag_options, ids)
+    end
+
+    def insert_transitive_relations
+      ActiveRecord::Base
+        .connection
+        .execute TypedDag::Sql::InsertReflexive.sql(_dag_options)
     end
 
     def dag_helper

@@ -28,6 +28,14 @@ class TypedDag::Configuration
     config[:node_class_name]
   end
 
+  def node_class
+    node_class_name.constantize
+  end
+
+  def node_table_name
+    node_class.table_name
+  end
+
   def edge_class_name
     config[:edge_class_name]
   end
