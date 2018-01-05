@@ -35,6 +35,10 @@ Again using the forum application as an example, one would have messages in a hi
 
 Please note that the name of the scopes (e.g. `children`, `hierarchy_roots` and `referenced`) and constants (`Message`) have to be configured.
 
+## Requirements
+
+* Rails >= 5.0
+* MySQL or PostgreSQL (>= 9.5) as `UPSERT` statements are used
 
 ## Installation
 
@@ -62,10 +66,12 @@ To avoid having to configure TypedDag twice, in the node and in the edge AR mode
 
 ```
   # /config/initializers/typed_dag.rb
+  # configuration for Relation/Message
   TypedDag::Configuration.set edge_class_name: 'Relation',
                               node_class_name: 'Message',
                               from_column: 'ancestor_id',
                               to_column: 'descendant_id',
+                              count_column: 'amount',
                               types: { hierarchy: { from: { name: :parent, limit: 1 },
                                                     to: :children,
                                                     all_from: :ancestors,
@@ -75,6 +81,8 @@ To avoid having to configure TypedDag twice, in the node and in the edge AR mode
                                                      all_from: :all_invalidated_by,
                                                      all_to: :all_invalidates } }
 
+
+  # unrelated configuration for Edge/Node
   TypedDag::Configuration.set edge_class_name: 'Edge'
                               node_class_name: 'Node',
                               types: { edge: { from: :edges_from,
@@ -93,6 +101,7 @@ The following options exist:
  * `node_class_name`: The name of the AR model whose instances serve as the nodes of the dag
  * `from_column` (default `from_id`): The name of the column in the edges AR model that refer to the node the edge starts from
  * `to_column` (default `to_id`): The name of the column in the edges AR model that refer to the node the edge ends in
+ * `count_column` (default `count`): The name of the column in the edges AR model that keeps track of the number of identical edges between from and to
  * `types`: The hash of type configurations. The key of each configuration will need to be present as a column in the edge's DB table.
   * `from`: The AR association's name for nodes having a relation which end in the current node, have the type specified by the key and are not transitive (have only one hop). Only for `from` can one specify a limit to the number of relations a node can have. Doing this turns the DAG into a tree which is usefull for hierarchies. If a limit needs to be specified, the configuration has to be provided as `{ name: [association's name], limit: 1 }`. If no limit is given, the association's name can be provided as a symbol.
   * `to`: The AR association's name for nodes having a relation which start from the current node, have the type specified by the key and are not transitive (have only one hop)
@@ -156,7 +165,8 @@ The edge's table needs to be created containing at least the following columns (
 
  * `from_id`: A reference to the node the edge starts from.
  * `to_id`: A reference to the node the edge ends in.
- * `[key]`: A column of type integer for every type the dag is to support
+ * `count`: The counter column for the number of similar (transitive) edges between to and from.
+ * `[key]`: A column of type integer for every type the dag is to support.
 
 A migration to create such a table could look like this:
 
@@ -166,6 +176,8 @@ A migration to create such a table could look like this:
       t.references :from, null: false
       t.references :to, null: false
 
+      t.column :count, :integer, null: false, default: 0
+
       t.column :hierarchy, :integer, null: false, default: 0
       t.column :reference, :integer, null: false, default: 0
     end
@@ -173,17 +185,20 @@ A migration to create such a table could look like this:
     add_foreign_key :edges, :nodes, column: :from_id
     add_foreign_key :edges, :nodes, column: :to_id
 
+    # give the index a custom name to avoid running into length limitation when having a couple of columns
+    # in the index
     add_index :edges, [:hierarchy, :reference], name: `index_on_type_columns`
+    add_index :edges, :count, where: 'count = 0'
   end
 ```
 
-the table can also have additional columns. They will not interfere with TypedDag.
+The table can also have additional columns. They will not interfere with TypedDag.
 
-Which indices to use will depend on the data added but having an index over all the type columns is a good start.
+Which indices to use will depend on the data added but having an index over all the type columns is a good start. A partial index on count speeds up deleting edges while also being very lightweight to maintain.
 
-There are no requirements for the node's table.
+There are no requirements on the node's table.
 
-When migrating from an different library, the details of course depend on the library used. If it is one of the many having a `parent_id` column on the node table, one would first have to create the edge table as outlined above and then add a SQL statement like this:
+When migrating from a different library, the details of course depend on the library used. If it is one of the many having a `parent_id` column on the node table, one would first have to create the edge table as outlined above and then add a SQL statement like this:
 
 ```
   ActiveRecord::Base.connection.execute <<-SQL

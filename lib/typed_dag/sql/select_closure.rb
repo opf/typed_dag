@@ -15,15 +15,26 @@ module TypedDag::Sql::SelectClosure
     def sql
       <<-SQL
         SELECT
-          r1.#{from_column},
-          r2.#{to_column},
-          #{depth_sum_case}
+          #{from_column},
+          #{to_column},
+          #{type_columns.join(', ')},
+          SUM(#{count_column}) AS #{count_column}
         FROM
-          #{table_name} r1
-        JOIN
-          #{table_name} r2
-        ON
-          (#{relations_join_combines_paths_condition})
+          (SELECT
+            r1.#{from_column},
+            r2.#{to_column},
+            #{depth_sum_case},
+            r1.#{count_column} * r2.#{count_column} AS #{count_column}
+          FROM
+            #{table_name} r1
+          JOIN
+            #{table_name} r2
+          ON
+            (#{relations_join_combines_paths_condition})) unique_rows
+        GROUP BY
+          #{from_column},
+          #{to_column},
+          #{type_columns.join(', ')}
       SQL
     end
 
@@ -40,7 +51,7 @@ module TypedDag::Sql::SelectClosure
             ELSE 0
             END AS #{column}
         SQL
-      end.join(', ')
+      end.map(&:strip).join(', ')
     end
 
     def relations_join_combines_paths_condition

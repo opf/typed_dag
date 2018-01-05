@@ -56,6 +56,10 @@ class TypedDag::Configuration
     config[:to_column] || 'to_id'
   end
 
+  def count_column
+    config[:count_column] || 'count'
+  end
+
   def types
     config[:types] || default_types
   end

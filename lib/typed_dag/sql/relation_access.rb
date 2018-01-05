@@ -11,6 +11,7 @@ module TypedDag::Sql::RelationAccess
     delegate :table_name,
              :from_column,
              :to_column,
+             :count_column,
              :type_columns,
              :type_select_list,
              to: :helper

@@ -30,8 +30,17 @@ module TypedDag
           [r.from.text,
            r.to.text,
            r.hierarchy,
-           r.invalidate]
+           r.invalidate,
+           r.count]
         end
+      end
+
+      def mysql_db?
+        ActiveRecord::Base.connection.adapter_name == 'Mysql2'
+      end
+
+      def harmonize_string(string)
+        string.squish.gsub('( ', '(').gsub(' )', ')')
       end
     end
   end

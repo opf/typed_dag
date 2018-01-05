@@ -24,12 +24,10 @@ ActiveRecord::Schema.define(version: 20170831093433) do
     t.bigint "descendant_id", null: false
     t.integer "hierarchy", default: 0, null: false
     t.integer "invalidate", default: 0, null: false
-    t.integer "mention", default: 0, null: false
+    t.integer "count", default: 0, null: false
+    t.index ["ancestor_id", "descendant_id", "hierarchy", "invalidate"], name: "unique_constraint", unique: true
     t.index ["ancestor_id"], name: "index_relations_on_ancestor_id"
     t.index ["descendant_id"], name: "index_relations_on_descendant_id"
-    t.index ["hierarchy"], name: "index_relations_on_hierarchy"
-    t.index ["invalidate"], name: "index_relations_on_invalidate"
-    t.index ["mention"], name: "index_relations_on_mention"
   end
 
   add_foreign_key "relations", "messages", column: "ancestor_id"

@@ -13,7 +13,7 @@ module TypedDag::Sql::TruncateClosure
     end
 
     def sql
-      if mysql_db?
+      if helper.mysql_db?
         sql_mysql
       else
         sql_postgresql
@@ -26,39 +26,37 @@ module TypedDag::Sql::TruncateClosure
 
     def sql_mysql
       <<-SQL
-        DELETE
-          deletion_table
-        FROM
-          #{table_name} deletion_table
-        INNER JOIN
-          #{selection_table} selection_table
-        ON deletion_table.id = selection_table.id
+        UPDATE #{table_name}
+        JOIN
+          (#{closure_select}) removed_#{table_name}
+        ON #{table_name}.#{from_column} = removed_#{table_name}.#{from_column}
+        AND #{table_name}.#{to_column} = removed_#{table_name}.#{to_column}
+        AND #{types_equality_condition}
+        SET
+          #{table_name}.#{count_column} = #{table_name}.#{count_column} - removed_#{table_name}.#{count_column}
       SQL
     end
 
     def sql_postgresql
       <<-SQL
-        DELETE FROM
-          #{table_name} deletion_table
-        USING
-          #{selection_table} selection_table
-        WHERE deletion_table.id = selection_table.id
+        UPDATE #{table_name}
+        SET
+          #{count_column} = #{table_name}.#{count_column} - removed_#{table_name}.#{count_column}
+        FROM
+          (#{closure_select}) removed_#{table_name}
+        WHERE #{table_name}.#{from_column} = removed_#{table_name}.#{from_column}
+        AND #{table_name}.#{to_column} = removed_#{table_name}.#{to_column}
+        AND #{types_equality_condition}
       SQL
     end
 
     def selection_table
       <<-SQL
-          (SELECT id
-          FROM (
-            SELECT COUNT(*) count, #{from_column}, #{to_column}, #{type_select_list}
-            FROM
-              (#{closure_select}) aggregation
-            GROUP BY #{from_column}, #{to_column}, #{type_select_list}) criteria
-
-          JOIN
-            (#{rank_similar_relations}) ranked
-          ON
-            #{ranked_critieria_join_condition})
+        (
+         SELECT COUNT(*) #{count_column}, #{from_column}, #{to_column}, #{type_select_list}
+         FROM
+           (#{closure_select}) aggregation
+         GROUP BY #{from_column}, #{to_column}, #{type_select_list})
       SQL
     end
 
@@ -66,113 +64,10 @@ module TypedDag::Sql::TruncateClosure
       TypedDag::Sql::SelectClosure.sql(relation)
     end
 
-    def rank_similar_relations
-      if mysql_db?
-        rank_similar_relations_mysql
-      else
-        rank_similar_relations_postgresql
-      end
-    end
-
-    def ranked_critieria_join_condition
-      <<-SQL
-        ranked.#{from_column} = criteria.#{from_column}
-        AND ranked.#{to_column} = criteria.#{to_column}
-        AND #{types_equality_condition}
-        AND count >= row_number
-      SQL
-    end
-
-    def type_column_values_pairs
-      type_columns.map do |column|
-        [column, relation.send(column)]
-      end
-    end
-
     def types_equality_condition
       type_columns.map do |column|
-        "ranked.#{column} = criteria.#{column}"
+        "#{table_name}.#{column} = removed_#{table_name}.#{column}"
       end.join(' AND ')
-    end
-
-    def mysql_db?
-      ActiveRecord::Base.connection.adapter_name == 'Mysql2'
-    end
-
-    def rank_similar_relations_mysql
-      <<-SQL
-        SELECT
-          id,
-          #{from_column},
-          #{to_column},
-          #{type_select_list},
-          greatest(@cur_count := IF(#{compare_mysql_variables},
-                                 @cur_count + 1, 1),
-                   least(0, #{assign_mysql_variables})) AS row_number
-        FROM
-          #{table_name}
-
-        CROSS JOIN (SELECT #{initialize_mysql_variables}) params_initialization
-
-        WHERE
-          #{only_relations_in_closure_condition}
-
-        ORDER BY #{from_column}, #{to_column}, #{type_select_list}
-      SQL
-    end
-
-    def rank_similar_relations_postgresql
-      <<-SQL
-        SELECT *, ROW_NUMBER() OVER(
-          PARTITION BY #{from_column}, #{to_column}, #{type_select_list}
-        )
-        FROM
-          #{table_name}
-        WHERE
-          #{only_relations_in_closure_condition}
-      SQL
-    end
-
-    def only_relations_in_closure_condition
-      <<-SQL
-        #{from_column} IN (SELECT #{from_column} FROM #{table_name} WHERE #{to_column} = #{from_id_value}) OR #{from_column} = #{from_id_value}
-      AND
-        #{to_column} IN (SELECT #{to_column} FROM #{table_name} WHERE #{from_column} = #{from_id_value})
-      SQL
-    end
-
-    def initialize_mysql_variables
-      variable_string = "@cur_count := NULL,
-                         @cur_#{from_column} := NULL,
-                         @cur_#{to_column} := NULL"
-
-      type_columns.each do |column|
-        variable_string += ", @cur_#{column} := NULL"
-      end
-
-      variable_string
-    end
-
-    def assign_mysql_variables
-      variable_string = "@cur_#{from_column} := #{from_column},
-                         @cur_#{to_column} := #{to_column}"
-
-      type_columns.each do |column|
-        variable_string += ", @cur_#{column} := #{column}"
-      end
-
-      variable_string
-    end
-
-    def compare_mysql_variables
-      variable_string = "@cur_#{from_column} = #{from_column} AND
-                         @cur_#{to_column} = #{to_column}"
-
-      type_columns.each do |column|
-        variable_string += " AND @cur_#{column} = #{column}"
-      end
-
-      variable_string
     end
   end
 end

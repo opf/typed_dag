@@ -347,15 +347,15 @@ RSpec.describe 'Edge' do
           it 'expects the transitive relations to be updated' do
             attribute_array = to_attribute_array Relation.non_reflexive
             expect(attribute_array)
-              .to match_array([['A', 'B', 0, 1],
-                               ['A', 'C', 1, 1],
-                               ['A', 'D', 1, 2],
-                               ['A', 'E', 2, 1],
-                               ['B', 'C', 1, 0],
-                               ['B', 'D', 1, 1],
-                               ['B', 'E', 2, 0],
-                               ['C', 'D', 0, 1],
-                               ['C', 'E', 1, 0]])
+              .to match_array([['A', 'B', 0, 1, 1],
+                               ['A', 'C', 1, 1, 1],
+                               ['A', 'D', 1, 2, 1],
+                               ['A', 'E', 2, 1, 1],
+                               ['B', 'C', 1, 0, 1],
+                               ['B', 'D', 1, 1, 1],
+                               ['B', 'E', 2, 0, 1],
+                               ['C', 'D', 0, 1, 1],
+                               ['C', 'E', 1, 0, 1]])
           end
         end
       end
@@ -415,15 +415,15 @@ RSpec.describe 'Edge' do
           it 'expects the transitive relations to be updated' do
             attribute_array = to_attribute_array Relation.non_reflexive
             expect(attribute_array)
-              .to match_array([['F', 'B', 0, 1],
-                               ['F', 'C', 0, 2],
-                               ['F', 'D', 0, 3],
-                               ['F', 'E', 1, 2],
-                               ['B', 'C', 0, 1],
-                               ['B', 'D', 0, 2],
-                               ['B', 'E', 1, 1],
-                               ['C', 'D', 0, 1],
-                               ['C', 'E', 1, 0]])
+              .to match_array([['F', 'B', 0, 1, 1],
+                               ['F', 'C', 0, 2, 1],
+                               ['F', 'D', 0, 3, 1],
+                               ['F', 'E', 1, 2, 1],
+                               ['B', 'C', 0, 1, 1],
+                               ['B', 'D', 0, 2, 1],
+                               ['B', 'E', 1, 1, 1],
+                               ['C', 'D', 0, 1, 1],
+                               ['C', 'E', 1, 0, 1]])
           end
         end
       end
@@ -483,15 +483,15 @@ RSpec.describe 'Edge' do
           it 'expects the transitive relations to be updated' do
             attribute_array = to_attribute_array Relation.non_reflexive
             expect(attribute_array)
-              .to match_array([['A', 'B', 0, 1],
-                               ['A', 'C', 0, 2],
-                               ['A', 'F', 0, 3],
-                               ['A', 'E', 1, 2],
-                               ['B', 'C', 0, 1],
-                               ['B', 'F', 0, 2],
-                               ['B', 'E', 1, 1],
-                               ['C', 'F', 0, 1],
-                               ['C', 'E', 1, 0]])
+              .to match_array([['A', 'B', 0, 1, 1],
+                               ['A', 'C', 0, 2, 1],
+                               ['A', 'F', 0, 3, 1],
+                               ['A', 'E', 1, 2, 1],
+                               ['B', 'C', 0, 1, 1],
+                               ['B', 'F', 0, 2, 1],
+                               ['B', 'E', 1, 1, 1],
+                               ['C', 'F', 0, 1, 1],
+                               ['C', 'E', 1, 0, 1]])
           end
         end
       end
@@ -551,12 +551,12 @@ RSpec.describe 'Edge' do
           it 'expects the transitive relations to be updated' do
             attribute_array = to_attribute_array Relation.non_reflexive
             expect(attribute_array)
-              .to match_array([['A', 'B', 0, 1],
-                               ['F', 'C', 0, 1],
-                               ['C', 'D', 0, 1],
-                               ['C', 'E', 1, 0],
-                               ['F', 'D', 0, 2],
-                               ['F', 'E', 1, 1]])
+              .to match_array([['A', 'B', 0, 1, 1],
+                               ['F', 'C', 0, 1, 1],
+                               ['C', 'D', 0, 1, 1],
+                               ['C', 'E', 1, 0, 1],
+                               ['F', 'D', 0, 2, 1],
+                               ['F', 'E', 1, 1, 1]])
           end
         end
       end

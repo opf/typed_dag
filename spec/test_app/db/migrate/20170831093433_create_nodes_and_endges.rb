@@ -10,11 +10,10 @@ class CreateNodesAndEndges < ActiveRecord::Migration[5.1]
 
       t.column :hierarchy, :integer, null: false, default: 0
       t.column :invalidate, :integer, null: false, default: 0
-      t.column :mention, :integer, null: false, default: 0
 
-      t.index :hierarchy
-      t.index :invalidate
-      t.index :mention
+      t.column :count, :integer, null: false, default: 1
+
+      t.index %i(ancestor_id descendant_id hierarchy invalidate), unique: true, name: 'unique_constraint'
     end
 
     add_foreign_key :relations, :messages, column: :ancestor_id

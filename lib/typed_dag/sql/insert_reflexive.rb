@@ -14,8 +14,9 @@ module TypedDag::Sql::InsertReflexive
       <<-SQL
         INSERT INTO #{helper.table_name}
           (#{helper.from_column},
-           #{helper.to_column})
-        SELECT id, id
+           #{helper.to_column},
+           #{helper.count_column})
+        SELECT id, id, 1
         FROM #{helper.node_table_name}
       SQL
     end

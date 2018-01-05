@@ -1,7 +1,7 @@
 language: ruby
 
 rvm:
-  - 2.4.1
+  - 2.4.2
 
 sudo: false
 
@@ -20,6 +20,9 @@ env:
   matrix:
     - "DB=postgresql"
     - "DB=mysql"
+
+addons:
+  postgresql: "9.5"
 
 before_script:
   - 'if [ $DB = "mysql" ]; then

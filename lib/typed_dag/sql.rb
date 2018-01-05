@@ -6,5 +6,6 @@ module TypedDag
     require 'typed_dag/sql/get_circular'
     require 'typed_dag/sql/remove_invalid_relation'
     require 'typed_dag/sql/insert_reflexive'
+    require 'typed_dag/sql/delete_zero_count'
   end
 end
