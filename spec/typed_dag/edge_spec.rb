@@ -134,6 +134,19 @@ RSpec.describe 'Edge' do
       end
     end
 
+    context 'with the relation switching directions' do
+      before do
+        relation.save
+        relation.from = to
+        relation.to = from
+      end
+
+      it 'is valid' do
+        expect(relation)
+          .to be_valid
+      end
+    end
+
     context 'with A - B - C and trying to connect C and A' do
       let(:a) { Message.create text: 'A' }
       let(:b) { Message.create text: 'B' }
