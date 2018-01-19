@@ -187,14 +187,14 @@ A migration to create such a table could look like this:
 
     # give the index a custom name to avoid running into length limitation when having a couple of columns
     # in the index
-    add_index :edges, [:hierarchy, :reference], name: `index_on_type_columns`
+    add_index :edges, [:from_id, :to_id, :hierarchy, :reference], name: `index_on_type_columns`, unique: true
     add_index :edges, :count, where: 'count = 0'
   end
 ```
 
 The table can also have additional columns. They will not interfere with TypedDag.
 
-Which indices to use will depend on the data added but having an index over all the type columns is a good start. A partial index on count speeds up deleting edges while also being very lightweight to maintain.
+Which indices to use will depend on the data added but a unique index covering the foreign keys to the nodes as well as the columns counting the hops per type is required. A partial index on count speeds up deleting edges while also being very lightweight to maintain. Please note that [MySql does not support partial indices](https://dev.mysql.com/doc/refman/5.7/en/create-index.html).
 
 There are no requirements on the node's table.
 
