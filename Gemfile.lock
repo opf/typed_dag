@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    typed_dag (2.0.1)
+    typed_dag (2.0.2)
       rails (>= 5.0.4)
 
 GEM
