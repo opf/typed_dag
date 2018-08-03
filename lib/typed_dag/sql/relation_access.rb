@@ -21,11 +21,11 @@ module TypedDag::Sql::RelationAccess
     end
 
     def from_id_value
-      wrapped_value('from_column')
+      wrapped_value('from_id')
     end
 
     def to_id_value
-      wrapped_value('to_column')
+      wrapped_value('to_id')
     end
 
     def wrapped_value(column)
