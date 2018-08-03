@@ -17,15 +17,23 @@ module TypedDag::Sql::RelationAccess
              to: :helper
 
     def id_value
-      relation.id
+      wrapped_value('id')
     end
 
     def from_id_value
-      relation.send(from_column)
+      wrapped_value('from_column')
     end
 
     def to_id_value
-      relation.send(to_column)
+      wrapped_value('to_column')
+    end
+
+    def wrapped_value(column)
+      uuid?(column) ? "'#{relation.send(column)}'" : relation.send(column)
+    end
+
+    def uuid?(column)
+      relation.class.columns_hash[column].type == :uuid
     end
 
     def type_values
