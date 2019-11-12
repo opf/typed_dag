@@ -128,6 +128,8 @@ On an instance:
  * `[all_to]` (`has_many` association): All nodes having edges of the type starting from the node.
  * `[all_from]_of_depth(depth)`: Scope to get all nodes having edges of the type ending in the node and that are connected via `depth` direct edges. A depth of 1 yields the same results as `[all_from]`.
  * `[all_to]_of_depth(depth)`: Scope to get all nodes having edges of the type starting from the node and that are connected via `depth` direct edges. A depth of 1 yields the same results as `[all_to]`.
+ * `[all_from]_until_depth(depth)`: Scope to get all nodes having edges of the type ending in the node and that are connected via `depth` or less direct edges. A depth of 1 yields the same results as `[all_from]`.
+ * `[all_to]_until_depth(depth)`: Scope to get all nodes having edges of the type starting from the node and that are connected via `depth` or less direct edges. A depth of 1 yields the same results as `[all_to]`.
  * `self_and_[all_from]`: Scope to get all nodes having edges of the type ending in the node and the node itself.
  * `self_and_[all_to]`: Scope to get all nodes having edges of the type starting from the node and the node itself.
  * `[key]_leaves`: Scope to get all nodes having edges of the type starting from the node that have no edges of the type starting from themselves.

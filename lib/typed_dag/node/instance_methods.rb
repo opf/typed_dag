@@ -36,9 +36,19 @@ module TypedDag::Node
             .where(_dag_options.edge_table_name => { key => depth })
         end
 
+        define_method :"#{config[:all_to]}_until_depth" do |depth|
+          send(config[:all_to])
+            .where(_dag_options.edge_table_name => { key => 1..depth })
+        end
+
         define_method :"#{config[:all_from]}_of_depth" do |depth|
           send(config[:all_from])
             .where(_dag_options.edge_table_name => { key => depth })
+        end
+
+        define_method :"#{config[:all_from]}_until_depth" do |depth|
+          send(config[:all_from])
+            .where(_dag_options.edge_table_name => { key => 1..depth })
         end
 
         define_method :"self_and_#{config[:all_from]}" do
