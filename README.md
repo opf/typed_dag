@@ -102,7 +102,7 @@ The following options exist:
  * `from_column` (default `from_id`): The name of the column in the edges AR model that refer to the node the edge starts from
  * `to_column` (default `to_id`): The name of the column in the edges AR model that refer to the node the edge ends in
  * `count_column` (default `count`): The name of the column in the edges AR model that keeps track of the number of identical edges between from and to
- * `types`: The hash of type configurations. The key of each configuration will need to be present as a column in the edge's DB table.
+ * `types`: The hash of type configurations. The key of each configuration will need to be present as a column in the edge's DB table. The values must be hashes with the following content:
   * `from`: The AR association's name for nodes having a relation which end in the current node, have the type specified by the key and are not transitive (have only one hop). Only for `from` can one specify a limit to the number of relations a node can have. Doing this turns the DAG into a tree which is usefull for hierarchies. If a limit needs to be specified, the configuration has to be provided as `{ name: [association's name], limit: 1 }`. If no limit is given, the association's name can be provided as a symbol.
   * `to`: The AR association's name for nodes having a relation which start from the current node, have the type specified by the key and are not transitive (have only one hop)
   * `all_from`: The AR association's name for nodes having a relation which ends in the current node and have the type specified by the key. Direct and transitive nodes are returned.
